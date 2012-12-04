@@ -22,7 +22,7 @@
   <link rel="stylesheet" href="stylesheets/foundation.min.css">
   <link rel="stylesheet" href="stylesheets/app.css">
 
-  <script src="javascripts/modernizr.foundation.js"></script>
+  <script src="javascripts/foundation/modernizr.foundation.js"></script>
 </head>
 <body>
 
@@ -31,10 +31,10 @@
   <nav class="top-bar">
     <ul>
       <!-- Title Area -->
-      <li class="name" style="width: 70px;>
+      <li class="name">
         <h1>
           <a href="#">
-            <img src="/images/logo.png" />
+            Alaska Carbon Exchange
           </a>
         </h1>
       </li>
@@ -46,7 +46,7 @@
       <ul class="left">
         <li class="divider"></li>
         <li class="has-dropdown">
-          <a class="active" href="#">Main Item 1</a>
+          <a class="active" href="#">Regions</a>
           <ul class="dropdown">
             <li><label>Section Name</label></li>
             <li><a href="#" class="">Dropdown Level 1</a></li>
@@ -116,15 +116,8 @@
         <li class="divider"></li>
         <li><a href="#">Main Item 5</a></li>
         <li class="divider"></li>
-        <li class="has-dropdown">
-          <a href="#">Main Item 6</a>
-          <ul class="dropdown">
-            <li><a href="#">Dropdown Option</a></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li class="divider"></li>
-            <li><a href="#">See all &rarr;</a></li>
-          </ul>
+        <li>
+          <a href="/">Login</a>
         </li>
       </ul>
     </section>
@@ -132,6 +125,11 @@
 
 
   <!-- End Header and Nav -->
+
+  <div class="row">
+    <div id="map_canvas" style="height: 400px;"></div>
+    <!-- <div id="map_canvas" style="height: 500px;"></div>       -->
+  </div>
 
   <!-- Main Grid Section -->
 
@@ -261,47 +259,85 @@
   </footer>
 
   <!-- Included JS Files (Uncompressed) -->
-  <!--
+
+  <script src="javascripts/foundation/jquery.js"></script>
   
-  <script src="javascripts/jquery.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.mediaQueryToggle.js"></script>
   
-  <script src="javascripts/jquery.foundation.mediaQueryToggle.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.forms.js"></script>
   
-  <script src="javascripts/jquery.foundation.forms.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.reveal.js"></script>
   
-  <script src="javascripts/jquery.foundation.reveal.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.orbit.js"></script>
   
-  <script src="javascripts/jquery.foundation.orbit.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.navigation.js"></script>
   
-  <script src="javascripts/jquery.foundation.navigation.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.buttons.js"></script>
   
-  <script src="javascripts/jquery.foundation.buttons.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.tabs.js"></script>
   
-  <script src="javascripts/jquery.foundation.tabs.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.tooltips.js"></script>
   
-  <script src="javascripts/jquery.foundation.tooltips.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.accordion.js"></script>
   
-  <script src="javascripts/jquery.foundation.accordion.js"></script>
+  <script src="javascripts/foundation/jquery.placeholder.js"></script>
   
-  <script src="javascripts/jquery.placeholder.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.alerts.js"></script>
   
-  <script src="javascripts/jquery.foundation.alerts.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.topbar.js"></script>
   
-  <script src="javascripts/jquery.foundation.topbar.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.joyride.js"></script>
   
-  <script src="javascripts/jquery.foundation.joyride.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.clearing.js"></script>
   
-  <script src="javascripts/jquery.foundation.clearing.js"></script>
+  <script src="javascripts/foundation/jquery.foundation.magellan.js"></script>
   
-  <script src="javascripts/jquery.foundation.magellan.js"></script>
-  
-  -->
   
   <!-- Included JS Files (Compressed) -->
-  <script src="javascripts/jquery.js"></script>
-  <script src="javascripts/foundation.min.js"></script>
+
+  <!--
+  
+  <script src="javascripts/foundation/jquery.js"></script>
+  <script src="javascripts/foundation/foundation.min.js"></script>
+
+  -->
   
   <!-- Initialize JS Plugins -->
-  <script src="javascripts/app.js"></script>
+  <script src="javascripts/foundation/app.js"></script>
+
+  <script src="javascripts/gmap3.js"></script>
+
+  <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
+
+  <script type="text/javascript">
+jQuery.noConflict();
+
+      jQuery(function(){
+
+        jQuery('#map_canvas').gmap3({
+          map:{
+            options:{
+              center:[44.797916,-93.278046]
+            },
+            callback: function(map){
+              if (map.getBounds()){
+                jQuery(this).gmap3({
+                  map:{
+                    onces:{
+                      bounds_changed: function(bounds){
+                        alert(bounds)
+                      }
+                    }
+                  }
+                });
+              }
+            }
+          }
+        });
+
+      });
+
+  </script>
+
 </body>
 </html>

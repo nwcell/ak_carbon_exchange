@@ -4,8 +4,8 @@
 
 // Grid Settings
 
-// $rowWidth: 1000px;
-// $columnGutter: 30px;
+$rowWidth: 100%;
+$columnGutter: 0;
 // $totalColumns: 12;
 // $mobileTotalColumns: 4;
 // $blockGridElements: 12; // Highest number of block grid elements, Maximum of 24 supported
@@ -96,8 +96,8 @@
 // Top Bar Settings
 
 // $topBarBgColor: #222;
-$topBarHeight: 70px;
-$topBarHeightMobile: 45px;
+// $topBarHeight: 70px;
+// $topBarHeightMobile: 45px;
 $topBarBtmMargin: 0px;
 // $topBarTitleWeight: bold;
 // $topBarTitleSize: 17px;

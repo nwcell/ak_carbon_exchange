@@ -51,7 +51,7 @@ class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycke
         self.status_message = kwargs.get('msg')
 
         #self.render('base/error.html')
-        self.write(status_code)
+        self.write(unicode(status_code))
         return
 
 ################################################################################
@@ -106,7 +106,7 @@ def serve(listenuri, mongodburi):
             tornado.web.URLSpec(r"/static/(.*)", tornado.web.StaticFileHandler, static_path_dict),
             tornado.web.URLSpec(r"/(stylesheets/.*)", tornado.web.StaticFileHandler, static_path_dict),
             tornado.web.URLSpec(r"/(images/.*)", tornado.web.StaticFileHandler, static_path_dict),
-            tornado.web.URLSpec(r"/(javascript/.*)", tornado.web.StaticFileHandler, static_path_dict),
+            tornado.web.URLSpec(r"/(javascripts/.*)", tornado.web.StaticFileHandler, static_path_dict),
             tornado.web.URLSpec(r"/(favicon.ico)$", tornado.web.StaticFileHandler, static_path_dict),
             tornado.web.URLSpec(r"/(robots.txt)$", tornado.web.StaticFileHandler, static_path_dict),
             #tornado.web.URLSpec(r'/login$', AuthLoginHandler, name='login'),
