@@ -64,6 +64,7 @@ class MainHandler(BaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self):
+        self.session.set('foo', ['bar', 'baz'])
         self.render('index.html')
 
 ################################################################################
@@ -96,8 +97,6 @@ def serve(listenuri, mongodburi):
     
     template_path = os.path.join(os.path.dirname(__file__), "templates")
         
-    pycket_pool = redis.ConnectionPool(max_connections=1) #Find better session framework (With Async)
-
     mongodb = motor.MotorConnection(mongodburi).open_sync().test_database
     cachedb = tornadoredis.Client()
 
@@ -123,26 +122,29 @@ def serve(listenuri, mongodburi):
             #tornado.web.URLSpec(r"/$", tornado.web.RedirectHandler, kwargs=dict(url='/dashboard')), #Temporary pending main advert/news page
             tornado.web.URLSpec(r"/$", MainHandler, name='index'),
             tornado.web.URLSpec(r"/(.*)", PageErrorHandler, kwargs=dict(error=404)),
-        ],          
-        template_path = template_path,
-        static_path = static_path,
-        cookie_secret = 'cookiemonster',
-        xsrf_cookies = True,
-        debug = True, #FIXME
-        login_url = '/login',
-        pycket = {
+        ],
+        **{          
+            'template_path': template_path,
+            'static_path': static_path,
+            'cookie_secret': 'cookiemonster',
+            'xsrf_cookies': True,
+            'debug': True, #FIXME
+            'login_url': '/login',
+            'mongodb': mongodb,
+            'cachedb': cachedb,
+            'pycket': {
                 'engine': 'redis',
                 'storage': {
-                'connection_pool': pycket_pool,
-                'db_sessions': 10,
-                'db_notifications': 11,
+                    'host': 'localhost',
+                    'port': 6379,
+                    'db_sessions': 10,
+                    'db_notifications': 11,
+                },
+                'cookies': {
+                    'expires_days': 120,
+                },
             },
-            'cookies': {
-                'expires_days': 120,
-            },
-        },
-        mongodb = mongodb,
-        cachedb = cachedb,        
+        }
     )
 
 
