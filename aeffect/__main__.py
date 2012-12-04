@@ -34,7 +34,7 @@ def main():
                     formatter_class=argparse.RawDescriptionHelpFormatter
                 )
 
-    init_parser.add_argument('mongodb',
+    init_parser.add_argument('mongodburi',
         action='store',
         help='mongodb://[username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database][?options]]',
         metavar='MONGODBURI')
@@ -49,12 +49,12 @@ def main():
                     formatter_class=argparse.RawDescriptionHelpFormatter
                 )
 
-    server_parser.add_argument('listen',
+    server_parser.add_argument('listenuri',
         action='store',
         help='http://host[:port]',
         metavar='LISTENURI')
 
-    server_parser.add_argument('mongodb',
+    server_parser.add_argument('mongodburi',
         action='store',
         help='mongodb://[username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database][?options]]',
         metavar='MONGODBURI')
@@ -74,15 +74,19 @@ def main():
 
     logging.basicConfig(level=loglevel)
 
-    logger = logging.getLogger('arguments')
+    clilogger = logging.getLogger('CLI')
 
     for arg, value in vars(args).iteritems():
-        logger.debug('%s:%s' % (arg, value))
+        clilogger.debug('%s:%s' % (arg, value))
 
-    logger = logging.getLogger('general')
-    logger.info('Revving up')
+    clilogger.info('Revving up')
 
-    return
+    if args.command == 'runserver':
+        from aeffect.server import serve
+        serve(args.listenuri, args.mongodburi)
+    else:
+        clilogger.error('Interesting... I should not have been called.')
 
 if __name__ == '__main__':
+    print sys.path
     sys.exit(main())
