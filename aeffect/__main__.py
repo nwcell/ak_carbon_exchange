@@ -8,7 +8,7 @@ import argparse
 import logging
 import urlparse
 
-import sqlzomg
+import aeffect
 
 ################################################################################
 ## ┏┳┓┏━┓╻┏┓╻
@@ -18,7 +18,7 @@ import sqlzomg
 def main():
 
     parser = argparse.ArgumentParser(
-                description=sqlzomg.__description__,
+                description=aeffect.__description__,
                 formatter_class=argparse.RawTextHelpFormatter
             )
 
@@ -38,6 +38,10 @@ def main():
         action='store',
         help='mongodb://[username:password@]host1[:port1][,host2[:port2],...[,hostN[:portN]]][/[database][?options]]',
         metavar='MONGODBURI')
+
+    init_parser.add_argument('--example-file',
+        action='store',
+        help='Load in example data (Lorem Ipsum, Fake Clients, Fake Data)')
 
 
     server_parser = subparsers.add_parser('runserver',
