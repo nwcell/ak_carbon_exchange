@@ -82,7 +82,7 @@ if __name__ == "__main__":
 
     conn = pymongo.Connection()
 
-    coll = conn.carboneffect
+    coll = conn.aeffect
 
     coll.regions.create_index([('name', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
     coll.regions.create_index([('patrion._id', pymongo.ASCENDING), ('name', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
