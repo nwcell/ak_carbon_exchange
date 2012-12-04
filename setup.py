@@ -3,20 +3,19 @@
 
 from distutils.core import setup
 
-import carboneffect
+import aeffect
 
 with open('README.md') as stream:
   long_desc = stream.read()
 
 setup(
-    name = carboneffect.__name__,
-    version = carboneffect.__version__,
-    author = carboneffect.__author__,
-    author_email = carboneffect.__email__,
-    packages = ['carboneffect'],
-    url = 'https://github.com/IndieInfoTech/Docket',
-    license = carboneffect.__license__,
-    description = carboneffect.__description__,
+    name = aeffect.__name__,
+    version = aeffect.__version__,
+    author = aeffect.__author__,
+    author_email = aeffect.__email__,
+    packages = ['aeffect'],
+    license = aeffect.__license__,
+    description = aeffect.__description__,
     long_description = long_desc,
     classifiers = [
         'Programming Language :: Python',
@@ -31,6 +30,11 @@ setup(
         'Topic :: Database',
         'Topic :: Communications',
     ],
+    entry_points={
+        'console_scripts': [
+            'aeffect = aeffect.__main__:main',
+        ],
+    }
 )
 
 
