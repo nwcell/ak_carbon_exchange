@@ -400,6 +400,9 @@ function get_random_color() {
 
                     google.maps.event.addListener(lotPolygon, 'click', function(shape) { jQuery("#region").text(this.that.shortregionname); jQuery("#state").text(this.that.state); });
 
+                    google.maps.event.addListener(lotPolygon, 'mouseover', function() { this.setOptions({'fillOpacity': .5}); jQuery("#region").text(this.that.shortregionname); jQuery("#state").text(this.that.state); });
+                    google.maps.event.addListener(lotPolygon, 'mouseout', function() { this.setOptions({'fillOpacity': 0.05}); jQuery("#region").text(this.that.shortregionname); jQuery("#state").text(this.that.state); });
+
                     lotPolygon.setMap(themap);
                     Rects.push(lotPolygon);
                 });
