@@ -19,7 +19,6 @@
   -->
   
   <!-- Included CSS Files (Compressed) -->
-  <link rel="stylesheet" href="stylesheets/foundation.min.css">
   <link rel="stylesheet" href="stylesheets/app.css">
 
   <script src="javascripts/foundation/modernizr.foundation.js"></script>
@@ -34,7 +33,7 @@
       <li class="name">
         <h1>
           <a href="#">
-            Alaska Carbon Exchange
+            <span id="ihateyou">Alaska Carbon Exchange</span>
           </a>
         </h1>
       </li>
@@ -62,17 +61,10 @@
           </ul>
         </li>
         <li class="divider"></li>
-        <li><a href="#">Main Item 2</a></li>
+        <li><a href="#">Visible Regions</a></li>
         <li class="divider"></li>
-        <li class="has-dropdown">
-          <a href="#">Main Item 3</a>
-          <ul class="dropdown">
-            <li><a href="#">Dropdown Option</a></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li class="divider"></li>
-            <li><a href="#">See all &rarr;</a></li>
-          </ul>
+        <li class="search">
+          <a href="#">Search</a>
         </li>
         <li class="divider"></li>
       </ul>
@@ -110,11 +102,17 @@
             <li><a href="#">Dropdown Option</a></li>
             <li><a href="#">Dropdown Option</a></li>
             <li class="divider"></li>
-            <li><a href="#">See all &rarr;</a></li>
+            <li><input type="search"></li>
           </ul>
         </li>
         <li class="divider"></li>
-        <li><a href="#">Main Item 5</a></li>
+          <li class="search">
+              <form action="asdf">
+                <input type="search">
+              </form>
+          </li>
+            <li class="has-button">
+          </li>
         <li class="divider"></li>
         <li>
           <a href="/">Login</a>
@@ -126,10 +124,14 @@
 
   <!-- End Header and Nav -->
 
-  <div class="row">
-    <div id="map_canvas" style="height: 400px;"></div>
-    <!-- <div id="map_canvas" style="height: 500px;"></div>       -->
-  </div>
+  <div id="map_canvas" style="height: 400px;"></div>
+
+  <ul class="breadcrumbs">
+      <li><a href="#">Home</a></li>
+      <li><a href="#">Regions</a></li>
+      <li class="current"><a href="#" id="state">State</a></li>
+      <li class="unavailable"><a href="#" id="region">Please select a region by clicking on it on the map or from the upper menu</a></li>
+  </ul>
 
   <!-- Main Grid Section -->
 
@@ -305,38 +307,129 @@
   <!-- Initialize JS Plugins -->
   <script src="javascripts/foundation/app.js"></script>
 
-  <script src="javascripts/gmap3.js"></script>
+  <!-- <script src="javascripts/gmap3.js"></script> -->
 
   <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
 
+  <script src="javascripts/jquery.ui.map.js"></script>
+
   <script type="text/javascript">
-jQuery.noConflict();
+    circles = 0
+    var Rects = [];
 
-      jQuery(function(){
+function get_random_color() {
+    var letters = '0123456789ABCDEF'.split('');
+    var color = '#';
+    for (var i = 0; i < 6; i++ ) { // >
+        color += letters[Math.round(Math.random() * 15)];
+    };
+    return color;
+};
 
-        jQuery('#map_canvas').gmap3({
-          map:{
-            options:{
-              center:[44.797916,-93.278046]
-            },
-            callback: function(map){
-              if (map.getBounds()){
-                jQuery(this).gmap3({
-                  map:{
-                    onces:{
-                      bounds_changed: function(bounds){
-                        alert(bounds)
-                      }
-                    }
-                  }
-                });
-              }
-            }
-          }
+
+
+    function myFunction(data) {
+        circles = circles + 1
+        var themap = jQuery('#map_canvas').gmap('get', 'map');
+        
+        cityCircle = new google.maps.Circle({
+          strokeColor: "#FF0000",
+          strokeOpacity: 0.8,
+          strokeWeight: Math.random() * 20,
+          fillColor: "#FF0000",
+          fillOpacity: 0.1,
+          map: themap,
+          center: new google.maps.LatLng(34.052234 +  (Math.random() * 0.3), -118.243684 + (Math.random() * 0.3)),
+          radius: 2000,
+          bounds: true,
+          clickable: true,
+          url: "/#" + circles,
+          _state: "Alaska",
         });
 
-      });
+        //google.maps.event.addListener(cityCircle, 'mouseover', function() { this.setOptions({'strokeWeight': 20}); });
+        //google.maps.event.addListener(cityCircle, 'mouseout', function() { this.setOptions({'strokeWeight': 2}); });
+        google.maps.event.addListener(cityCircle, 'click', function(shape) { jQuery("#region").text(this.url); jQuery("#state").text(this._state); });
 
+        if (data) {
+
+            if (Rects) {
+                for (i in Rects) {
+                    Rects[i].setMap(null);
+                }
+            }
+            Rects.length = 0;
+
+            jQuery.each(data,function(idx, obj){
+
+                var themap = jQuery('#map_canvas').gmap('get', 'map');
+
+                //var swLatLng = new google.maps.LatLng(obj.bbox.s, obj.bbox.w);
+                //var neLatLng = new google.maps.LatLng(obj.bbox.n, obj.bbox.e);
+                //var rectBounds = new google.maps.LatLngBounds(swLatLng, neLatLng);
+                //var ghRectangle = new google.maps.Rectangle({
+                //    bounds: rectBounds,
+                //    title:"Hello World!",
+                //    //map: themap,
+                //    strokeColor: "#000000",
+                //    strokeOpacity: 1,
+                //    strokeWeight: 2,
+                //    fillOpacity: 0,
+                //});
+
+                //Rects.push(ghRectangle);                
+
+                var that = this;
+
+                jQuery.each(obj.json.coordinates, function(idxx, objx){
+                    var paths = [];
+
+                    jQuery.each(objx, function(idxxx, objxx){
+                        paths.push(new google.maps.LatLng(objxx[1], objxx[0]));
+                    });                    
+
+                    var lotPolygon = new google.maps.Polygon({
+                        paths: paths,
+                        strokeColor: get_random_color(),
+                        strokeOpacity: 0.8,
+                        strokeWeight: 2,
+                        fillColor: get_random_color(),
+                        fillOpacity: 0.05,
+                        that: that,
+                    });
+
+                    google.maps.event.addListener(lotPolygon, 'click', function(shape) { jQuery("#region").text(this.that.shortregionname); jQuery("#state").text(this.that.state); });
+
+                    lotPolygon.setMap(themap);
+                    Rects.push(lotPolygon);
+                });
+
+                //var lotLatLng = new google.maps.LatLng(obj.centroid.lat, obj.centroid.long);
+                //var lot = new google.maps.Marker({
+                //    position: lotLatLng,
+                //    title:obj.geohash,
+                //    map: themap,
+                //    region: obj.region,
+                //});
+
+            });
+        };
+    };
+
+    $.noConflict();
+    
+    // Load Function
+    jQuery(function () {
+        jQuery('#map_canvas').gmap({ 'center': '64.735967,-151.262664', 'zoom': 4 }).bind(
+            'init',
+            function (event, map) {
+                jQuery(map).idle(function () {
+                    jQuery.getJSON('/jsontest', {'center': map.getCenter().toUrlValue(), 'bounds': map.getBounds().toUrlValue()}, function(data) { myFunction(data); });
+                });
+            }
+        );
+    });
+    
   </script>
 
 </body>

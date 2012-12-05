@@ -14,6 +14,7 @@ import tornado.gen
 
 #Tornado based MongoDB connector
 import motor
+import bson.json_util
 
 #Sessions and Cache
 import redis
@@ -22,6 +23,10 @@ import pycket
 import pycket.session
 import pycket.notification
 
+import json
+
+#The fun stuff
+import geohash
 
 ####################################
 ################################################################################
@@ -68,6 +73,71 @@ class MainHandler(BaseHandler):
         self.render('index.html')
 
 ################################################################################
+
+class JSONTestHandler(BaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+        print 'badabing'
+        db = self.settings['mongodb']
+
+        bounds = self.get_argument("bounds")
+        center = self.get_argument("center")
+
+        result = yield motor.Op(db.poop.insert, {'i': bounds})
+
+        if not bounds or not center:
+            self.write([])
+            self.finish()
+            return
+
+        south, west, north, east = [float(x) for x in bounds.split(',')]
+
+        lat, long = [float(x) for x in center.split(',')]
+        print lat, long
+
+        width = abs(north - south)
+        height = abs(east - west)
+
+        print lat, long
+        for precision in [1,2,3,4]:
+
+            _lat, _long, _width, _height = geohash.decode_exactly(geohash.encode(lat, long, precision=precision))
+
+            geohash_center = geohash.encode(lat, long, precision=precision)
+
+            if _width * 4 <= width or _height * 4 <= height:
+                break            
+
+        query = {'parent': {'$in': geohash.expand(geohash_center)}}
+        print query
+        query = {}
+        cursor = db.lots.find(query)
+
+        lots = []
+
+        while (yield cursor.fetch_next):
+            lot = cursor.next_object()
+            print lot
+            lot['bbox'] = geohash.bbox(lot['hash'])
+            lot['shortregionname'] = str(lot['region']['_id'])
+            lots.append(lot)
+
+
+        cursor = db.regions.find(query)
+
+        while (yield cursor.fetch_next):
+            lot = cursor.next_object()
+            lot['shortregionname'] = str(lot['name'])
+            print lot
+            lots.append(lot)
+
+        self.write(bson.json_util.dumps(lots))
+        self.finish()
+        return
+
+################################################################################
 ## ┏━┓┏━┓┏━╸┏━╸┏━╸┏━┓┏━┓┏━┓┏━┓╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
 ## ┣━┛┣━┫┃╺┓┣╸ ┣╸ ┣┳┛┣┳┛┃ ┃┣┳┛┣━┫┣━┫┃┗┫ ┃┃┃  ┣╸ ┣┳┛
 ## ╹  ╹ ╹┗━┛┗━╸┗━╸╹┗╸╹┗╸┗━┛╹┗╸╹ ╹╹ ╹╹ ╹╺┻┛┗━╸┗━╸╹┗╸
@@ -97,7 +167,7 @@ def serve(listenuri, mongodburi):
     
     template_path = os.path.join(os.path.dirname(__file__), "templates")
         
-    mongodb = motor.MotorConnection(mongodburi).open_sync().test_database
+    mongodb = motor.MotorConnection(mongodburi).open_sync().ace
     cachedb = tornadoredis.Client()
 
     application = tornado.web.Application(
@@ -120,6 +190,7 @@ def serve(listenuri, mongodburi):
             #tornado.web.URLSpec(r'/api/document/insert$', APIDocumentInsertHandler),
             #tornado.web.URLSpec(r'/api/document/link$', APIDocumentLinkHandler),
             #tornado.web.URLSpec(r"/$", tornado.web.RedirectHandler, kwargs=dict(url='/dashboard')), #Temporary pending main advert/news page
+            tornado.web.URLSpec(r"/jsontest$", JSONTestHandler),
             tornado.web.URLSpec(r"/$", MainHandler, name='index'),
             tornado.web.URLSpec(r"/(.*)", PageErrorHandler, kwargs=dict(error=404)),
         ],

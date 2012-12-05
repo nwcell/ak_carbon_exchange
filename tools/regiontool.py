@@ -6,6 +6,7 @@ import progressbar
 
 import pymongo
 import bson
+import bson.json_util
 import json
 
 import osgeo.osr
@@ -13,17 +14,8 @@ import osgeo.ogr
 
 import geohash
 
-#LEVELS = [1,2,3,4,5,6,7,8]
-LEVELS = [1,2,3,4,5,6,7]
-LEVELCOLLNAME = {
-    1: 'lots.level_1',
-    2: 'lots.level_2',
-    3: 'lots.level_3',
-    4: 'lots.level_4',
-    5: 'lots.level_5',
-    6: 'lots.level_6',
-    7: 'lots',
-}
+#LEVELS = [1,2,3,4,5,6]
+LEVELS = [1,2,3,4,5]
 PRECISION = LEVELS[-1]
 
 WGS_84 = osgeo.osr.SpatialReference()
@@ -50,6 +42,10 @@ if __name__ == "__main__":
     parser.add_argument('region_name_field',
         action='store',
         metavar='REGION_NAME_FIELD')
+
+    parser.add_argument('state',
+        action='store',
+        metavar='STATE')
 
     parser.add_argument('client_oid',
         action='store',
@@ -82,15 +78,16 @@ if __name__ == "__main__":
 
     conn = pymongo.Connection()
 
-    coll = conn.aeffect
+    coll = conn.ace
 
     coll.regions.create_index([('name', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
     coll.regions.create_index([('patrion._id', pymongo.ASCENDING), ('name', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
 
     for level in LEVELS:
-        coll[LEVELCOLLNAME[level]].create_index([('hash', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)], unique=True)
-        coll[LEVELCOLLNAME[level]].create_index([('parent', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)], unique=True)
-        coll[LEVELCOLLNAME[level]].create_index([('region._id', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)], unique=True)
+        coll.lots.create_index([('hash', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+        coll.lots.create_index([('parent', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+        coll.lots.create_index([('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+        coll.lots.create_index([('precision', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)]) #make this a uniquely sparse solution
 
     for layer in osgeo.ogr.Open(args.shapefile):
         for feature in layer:
@@ -102,6 +99,7 @@ if __name__ == "__main__":
             region_oid = coll.regions.insert(
                 {
                     'name': region_name,
+                    'state': args.state,
                     'json': json.loads(geom.ExportToJson()),
                     'srid': {
                         'storage': 4326,
@@ -173,11 +171,15 @@ if __name__ == "__main__":
 
                 overlapped = geom.Overlaps(bbox_geom)
                 contained = geom.Contains(bbox_geom)
+                #logger.info(repr([overlapped, contained]))
+                
 
                 if contained or overlapped:    
 
                     if overlapped:
-                        bbox_geom = geom.Union(bbox_geom)
+                        bbox_geom = geom.Intersection(bbox_geom)
+                        #bbox_geom = geom.Union(bbox_geom)
+                    #logger.info(str(bbox_geom))
 
                     new_bbox_geom = bbox_geom.Clone()
                     new_bbox_geom.TransformTo(NAD83_Alaska_Albers)
@@ -218,9 +220,10 @@ if __name__ == "__main__":
                         _contained = geom.Contains(bbox_geom)
 
                         if _overlapped:
-                            _bbox_geom = geom.Union(_bbox_geom)
+                            _bbox_geom = geom.Intersection(_bbox_geom)
+                            #_bbox_geom = geom.Union(_bbox_geom)
         
-                        _doc = coll[LEVELCOLLNAME[level]].find_and_modify(
+                        _doc = coll.lots.find_and_modify(
                             {
                                 'hash': current_geohash[0:level],
                                 'region._id': region_oid
@@ -232,8 +235,10 @@ if __name__ == "__main__":
                                         '_id': region_oid,
                                         'name': region_name,
                                     },
-                                    'parent': current_geohash[0:level-1] or None,
+                                    'parent': current_geohash[0:level-1] or current_geohash,
+                                    'state': args.state,
                                     'buffered': True if (_overlapped and not _contained) and level == PRECISION else False,
+                                    'precision': PRECISION, #Quicky
                                 },
                                 '$inc': {
                                     'area.allocated': area if _contained and not _overlapped else 0,
@@ -248,7 +253,7 @@ if __name__ == "__main__":
 
                         #Add the big ugly stuff if'n it's new
                         if not _doc: #New document
-                            coll[LEVELCOLLNAME[level]].update(
+                            coll.lots.update(
                                 {
                                     'hash': current_geohash[0:level],
                                     'region._id': region_oid
@@ -257,6 +262,7 @@ if __name__ == "__main__":
                                     '$set': {
                                         #'wkb': bson.Binary(bbox_geom.ExportToWkb())
                                         'json': json.loads(bbox_geom.ExportToJson()),
+                                        'centroid': {'lat': _lat, 'long': _long},                                        
                                     },
                                 },
                             )    
