@@ -1,0 +1,19 @@
+This zip file contains GIS layers extracted from the Spatial Data
+Management System. The files you may find here are:
+.shp, .shx, .dbf - Shapefiles
+.html            - Metadata
+.tif             - Rasters
+.tfw             - World files
+.prj             - Projection files 
+.kml             - Google Earth files
+
+All shapefile and rasters are in the Alaska Albers (meters) projection, NAD83
+datum.  The KML files are in Geographic, WGS84 datum.
+
+IMPORTANT! - Be sure to read the metadata packaged with your dataset.
+It contains crucial information about the data, including the attributes
+and completeness. Metadata can be found in the .html file(s).
+
+Warning: Depending on your view extent you may have downloaded only
+a portion of the data. In addition, much of the data on this site is dynamic
+and changes regularly. Be aware of these limitations when using downloaded data.
