@@ -109,8 +109,8 @@ if __name__ == "__main__":
             feature_geom = feature.GetGeometryRef()
             feature_geom.TransformTo(WGS_84)
 
-            if region_name == "ELIM NATIVE CORPORATION":
-                continue
+            #if region_name == "ELIM NATIVE CORPORATION":
+            #    continue
 
             #print feature.ExportToJson(as_object=True) ##Very handy for later
 
