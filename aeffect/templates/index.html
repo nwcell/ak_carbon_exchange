@@ -349,8 +349,8 @@ function get_random_color() {
           _state: "Alaska",
         });
 
-        //google.maps.event.addListener(cityCircle, 'mouseover', function() { this.setOptions({'strokeWeight': 20}); });
-        //google.maps.event.addListener(cityCircle, 'mouseout', function() { this.setOptions({'strokeWeight': 2}); });
+        google.maps.event.addListener(cityCircle, 'mouseover', function() { this.setOptions({'strokeWeight': 20}); });
+        google.maps.event.addListener(cityCircle, 'mouseout', function() { this.setOptions({'strokeWeight': 2}); });
         google.maps.event.addListener(cityCircle, 'click', function(shape) { jQuery("#region").text(this.url); jQuery("#state").text(this._state); });
 
         if (data) {
@@ -418,8 +418,8 @@ function get_random_color() {
     
                         google.maps.event.addListener(lotPolygon, 'click', function(shape) { jQuery("#region").text(this.that.region.slug); jQuery("#state").text(this.that.state); });
     
-                        google.maps.event.addListener(lotPolygon, 'mouseover', function() { this.setOptions({'fillOpacity': .5}); });
-                        google.maps.event.addListener(lotPolygon, 'mouseout', function() { this.setOptions({'fillOpacity': 0.05}); });
+                        google.maps.event.addListener(lotPolygon, 'mouseover', function() { this.setOptions({'fillOpacity': .5}); this.setOptions({'strokeWeight': 4}); });
+                        google.maps.event.addListener(lotPolygon, 'mouseout', function() { this.setOptions({'fillOpacity': 0.05}); this.setOptions({'strokeWeight': 2}); });
     
                         lotPolygon.setMap(themap);
                         //console.log('drawn')

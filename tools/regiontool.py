@@ -285,4 +285,5 @@ if __name__ == "__main__":
                     region['area'][specific_area]['available'] += area_square_meters
 
             coll.regions.insert(region)
-            coll.lots.insert(lots.itervalues())
+            for lot in lots.itervalues():
+                coll.lots.insert(lot)

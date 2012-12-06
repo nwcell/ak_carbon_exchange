@@ -90,7 +90,7 @@ class JSONTestHandler(BaseHandler):
     @tornado.gen.engine
     def get(self):
         db = self.settings['mongodb']
-
+        print 'processing request'
         ### Process Bounds and Center arguments
 
         view_bounds_str = self.get_argument("bounds")
