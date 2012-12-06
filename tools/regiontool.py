@@ -109,8 +109,8 @@ if __name__ == "__main__":
             feature_geom = feature.GetGeometryRef()
             feature_geom.TransformTo(WGS_84)
 
-            #if region_name == "ELIM NATIVE CORPORATION":
-            #    continue
+            ##if region_name == "ELIM NATIVE CORPORATION":
+            ##    continue
 
             #print feature.ExportToJson(as_object=True) ##Very handy for later
 
@@ -126,6 +126,9 @@ if __name__ == "__main__":
                     'srid': {
                         'storage': 4326,
                         'calculation': 3338,
+                    },
+                    'geom': {
+                        'outline': [json.loads(feature_geom.ConvexHull().ExportToJson())],
                     },
                     'client': {
                         '_id': client_oid,
@@ -247,9 +250,9 @@ if __name__ == "__main__":
                 hash_geom = feature_geom.Intersection(hash_bbox_geom)
                 hash_geom.AssignSpatialReference(WGS_84) #Mucho Importanto
 
-                lots[hash]['geom']['centroid'] = bson.Binary(hash_geom.Centroid().ExportToWkb())
-                lots[hash]['geom']['bounds'] = bson.Binary(hash_bbox_geom.ConvexHull().ExportToWkb())
-                lots[hash]['geom']['outline'] = bson.Binary(hash_geom.ConvexHull().ExportToWkb())
+                lots[hash]['geom']['centroid'] = json.loads(hash_geom.Centroid().ExportToJson())
+                lots[hash]['geom']['bounds'] = json.loads(hash_bbox_geom.ConvexHull().ExportToJson())
+                lots[hash]['geom']['outline'] = [json.loads(hash_geom.ConvexHull().ExportToJson())]
 
                 ### Add Children to Parents
                 hash_parent = lots[hash]['parent']
