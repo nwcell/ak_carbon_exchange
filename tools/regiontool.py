@@ -1,5 +1,9 @@
 #!/usr/bin/python
 
+import re
+
+import datetime
+
 import argparse
 import logging
 import progressbar
@@ -14,15 +18,16 @@ import osgeo.ogr
 
 import geohash
 
-#LEVELS = [1,2,3,4,5,6]
-LEVELS = [1,2,3,4,5]
-PRECISION = LEVELS[-1]
-
+PRECISION = 7 #.. Yeah.. that happen.
+SEGMENT_PRECISION = 0.0001 #not good enough for 8
+BUFFER_PRECISION = 0.0001 # not good enough for 8
 WGS_84 = osgeo.osr.SpatialReference()
 WGS_84.ImportFromEPSG(4326)
 
 NAD83_Alaska_Albers = osgeo.osr.SpatialReference()
 NAD83_Alaska_Albers.ImportFromEPSG(3338)
+
+NOW = datetime.datetime.utcnow()
 
 if __name__ == "__main__":
 
@@ -42,6 +47,10 @@ if __name__ == "__main__":
     parser.add_argument('region_name_field',
         action='store',
         metavar='REGION_NAME_FIELD')
+
+    parser.add_argument('region_slug_field',
+        action='store',
+        metavar='REGION_SLUG_FIELD')
 
     parser.add_argument('state',
         action='store',
@@ -81,199 +90,201 @@ if __name__ == "__main__":
     coll = conn.ace
 
     coll.regions.create_index([('name', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+    coll.regions.create_index([('slug', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
     coll.regions.create_index([('patrion._id', pymongo.ASCENDING), ('name', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
 
-    for level in LEVELS:
-        coll.lots.create_index([('hash', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
-        coll.lots.create_index([('parent', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
-        coll.lots.create_index([('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
-        coll.lots.create_index([('precision', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)]) #make this a uniquely sparse solution
+    coll.lots.create_index([('hash', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+    coll.lots.create_index([('parent', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+    coll.lots.create_index([('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+    coll.lots.create_index([('precision', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)]) #make this a uniquely sparse solution
 
     for layer in osgeo.ogr.Open(args.shapefile):
         for feature in layer:
-            region_name = feature[args.region_name_field]
-            
-            geom = feature.GetGeometryRef()
-            geom.TransformTo(WGS_84)
+            lots = {}
 
-            region_oid = coll.regions.insert(
-                {
+            hashes = set([])
+            region_name = feature[args.region_name_field]
+            region_slug = re.sub('\W', '', feature[args.region_slug_field])
+            region_logger = logging.getLogger(region_name)
+            feature_geom = feature.GetGeometryRef()
+            feature_geom.TransformTo(WGS_84)
+
+            if region_name == "ELIM NATIVE CORPORATION":
+                continue
+
+            #print feature.ExportToJson(as_object=True) ##Very handy for later
+
+            #insert this after you've calculated and added to it
+            region_oid = bson.ObjectId()
+
+            region = {
+                    '_id': region_oid,
                     'name': region_name,
+                    'slug': region_slug,
                     'state': args.state,
-                    'json': json.loads(geom.ExportToJson()),
+                    'precisions': PRECISION,
                     'srid': {
                         'storage': 4326,
                         'calculation': 3338,
                     },
                     'client': {
                         '_id': client_oid,
-                    }
+                    },
+                    'srid': {
+                        'storage': 4326,
+                        'calculation': 3338,
+                    },
+                    'area': {
+                        'normal': {
+                            'allocated': 0,
+                            'available': 0,
+                        },
+                        'buffer': {
+                            'allocated': 0,
+                            'available': 0,
+                        }
+                    },
+                    'dates': {
+                        'imported': NOW,
+                        'estimated': None,
+                    },
                 }
-            )
 
-            region_oid_str = str(region_oid)
-            
-            new_geom = geom.Clone()
-            #get area estimate
-            new_geom.TransformTo(NAD83_Alaska_Albers)
-            estimated_area = new_geom.Area()
+            buffered_feature_geom = feature_geom.Clone()
+            buffered_feature_geom.Segmentize(SEGMENT_PRECISION)
+            buffer_offset = 1
 
-            geom_west, geom_east, geom_south, geom_north = geom.GetEnvelope()
+            while buffered_feature_geom.Area():
+                #do stuff pre-buffer
+                #for g in range(buffered_feature_geom.Getfeature_geometryCount()):
+                #    sub_feature_geom = buffered_feature_geom.Getfeature_geometryRef(g)
+                #    region_logger.info(sub_feature_geom.GetPointCount())
 
-            north_west_geohash = geohash.encode(geom_north, geom_west, precision=PRECISION)
-            south_east_geohash = geohash.encode(geom_south, geom_east, precision=PRECISION)
+                for coords in [c.split() for c in buffered_feature_geom.ExportToWkt().replace('MULTI', '').replace('POLYGON', '').replace('(', '').replace(')', '').strip().split(',')]:
+                    hash = geohash.encode(float(coords[1]), float(coords[0]), precision=PRECISION)
+                    hashes.update([hash[0:i] for i in range(1, len(hash)+1)])
 
-            north_west_bbox = geohash.bbox(north_west_geohash)
-            south_east_bbox = geohash.bbox(south_east_geohash)
+                buffered_feature_geom = feature_geom.Buffer(buffer_offset * -BUFFER_PRECISION)
 
-            #Start here.. read like a book
-            current_geohash = north_west_geohash
+                buffered_feature_geom.Segmentize(SEGMENT_PRECISION)
+                region_logger.info(repr([buffer_offset, '%.64f' % buffered_feature_geom.Area()]))
+                buffer_offset += 1
 
-            logger.info('Working on Region ' + region_name)
+            #region_logger.info(hashes)
 
-            #REMOVEME
-            if estimated_area > 50000000:
-                estimated_area = 50000000
 
-            widgets = ['Calculating: ', progressbar.Percentage(), ' ', progressbar.Bar()]
-            progress = progressbar.ProgressBar(widgets=widgets, maxval=estimated_area).start()
+            widgets = ['Setting Defaults: ', progressbar.Percentage(), ' ', progressbar.Bar()]
+            progress = progressbar.ProgressBar(widgets=widgets).start()
 
-            progress_area = 0
+            sorted_hashes = sorted(hashes)
 
-            while True: #Danger Will Robinson FIXME
+            for hash in progress(sorted_hashes):
 
-                current_lat, current_long, current_width, current_height = geohash.decode_exactly(current_geohash)
+                lot_oid = bson.ObjectId()
 
-                current_bbox = geohash.bbox(current_geohash)
+                default_lot_dict = {
+                    '_id': lot_oid,
+                    'hash': hash,
+                    'state': args.state, #Convert to FIPS code #FIXME
+                    'parent': hash[0:len(hash)-1] or None,
+                    'precision': len(hash),
+                    'children': [],
+                    'geom': {
+                        'centroid': None,
+                        'bounds': None,
+                        'outline': None,
+                    },
+                    'area': {
+                        'unit': 'meters',
+                        'normal': {
+                            'allocated': 0,
+                            'available': 0,
+                        },
+                        'buffer': {
+                            'allocated': 0,
+                            'available': 0,
+                        }
+                    },
+                    'flags': {
+                        'buffer': False,
+                        'normal': False,
+                    },
+                    'dates': {
+                        'imported': NOW,
+                        'estimated': None,
+                    },
+                    'region': {
+                        '_id': region_oid,
+                        'name': region_name,
+                        'slug': region_slug,
+                    },
+                    
+                }
 
-                #If we pass by the eastern most point of our bounding box.. wrap back to west and down one
-                if current_long + current_width > south_east_bbox['e']:                    
-                    current_geohash = geohash.encode(current_bbox['s'] - (current_height / 2.0), geom_west, precision=PRECISION)
+                lots[hash] = default_lot_dict
+
+
+            widgets = ['Calculating Area: ', progressbar.Percentage(), ' ', progressbar.Bar()]
+            progress = progressbar.ProgressBar(widgets=widgets).start()
+
+            for hash in progress(sorted_hashes):
+
+                hash_bbox = geohash.bbox(hash)
+
+                hash_bbox_ring = osgeo.ogr.Geometry(osgeo.ogr.wkbLinearRing)
+                hash_bbox_ring.AssignSpatialReference(WGS_84)
+                hash_bbox_ring.AddPoint(hash_bbox['w'], hash_bbox['n'])
+                hash_bbox_ring.AddPoint(hash_bbox['e'], hash_bbox['n'])
+                hash_bbox_ring.AddPoint(hash_bbox['e'], hash_bbox['s'])
+                hash_bbox_ring.AddPoint(hash_bbox['w'], hash_bbox['s'])
+                hash_bbox_ring.AddPoint(hash_bbox['w'], hash_bbox['n'])
+
+                hash_bbox_geom = osgeo.ogr.Geometry(osgeo.ogr.wkbPolygon)
+                hash_bbox_geom.AssignSpatialReference(WGS_84)
+
+                hash_bbox_geom.AddGeometry(hash_bbox_ring)
+
+                hash_geom = feature_geom.Intersection(hash_bbox_geom)
+                hash_geom.AssignSpatialReference(WGS_84) #Mucho Importanto
+
+                lots[hash]['geom']['centroid'] = bson.Binary(hash_geom.Centroid().ExportToWkb())
+                lots[hash]['geom']['bounds'] = bson.Binary(hash_bbox_geom.ConvexHull().ExportToWkb())
+                lots[hash]['geom']['outline'] = bson.Binary(hash_geom.ConvexHull().ExportToWkb())
+
+                print lots[hash]
+
+                ### Add Children to Parents
+                hash_parent = lots[hash]['parent']
+                if hash_parent:
+                    if not hash in lots[hash_parent]['children']:
+                        lots[hash_parent]['children'].append(hash)
+
+                ##### FROM THIS POINT ON.. ONLY HIGH PRECISION LOTS WILL BE USED FOR CALCULATIONS
+
+                if not len(hash) == PRECISION:
                     continue
 
-                #If we are below our geoms bbox.. then break the loop cause we are done.
-                if current_lat - current_height < south_east_bbox['s']:
-                    break
+                #do some buffering tests here.
 
-                #Create a ring for a polygon defining the bounding box so we can check for overlap with the geom
-                bbox_ring = osgeo.ogr.Geometry(osgeo.ogr.wkbLinearRing)
-                bbox_ring.AssignSpatialReference(WGS_84)
-                bbox_ring.AddPoint(current_bbox['w'], current_bbox['n'])
-                bbox_ring.AddPoint(current_bbox['e'], current_bbox['n'])
-                bbox_ring.AddPoint(current_bbox['e'], current_bbox['s'])
-                bbox_ring.AddPoint(current_bbox['w'], current_bbox['s'])
-                bbox_ring.AddPoint(current_bbox['w'], current_bbox['n'])
+                hash_bbox_area = hash_bbox_geom.Area()
+                hash_geom_area = hash_geom.Area()
 
-                bbox_geom = osgeo.ogr.Geometry(osgeo.ogr.wkbPolygon) #create a polygon
-                bbox_geom.AssignSpatialReference(WGS_84)
+                is_buffer_lot = (hash_bbox_area != hash_geom_area) and len(hash) == PRECISION
 
-                bbox_geom.AddGeometry(bbox_ring)
-
-                overlapped = geom.Overlaps(bbox_geom)
-                contained = geom.Contains(bbox_geom)
-                #logger.info(repr([overlapped, contained]))
+                #convert to appropriate meter projection
                 
+                hash_geom_xform = hash_geom.Clone()
+                hash_geom_xform.TransformTo(NAD83_Alaska_Albers)
+                area_square_meters = hash_geom_xform.Area()
 
-                if contained or overlapped:    
-
-                    if overlapped:
-                        bbox_geom = geom.Intersection(bbox_geom)
-                        #bbox_geom = geom.Union(bbox_geom)
-                    #logger.info(str(bbox_geom))
-
-                    new_bbox_geom = bbox_geom.Clone()
-                    new_bbox_geom.TransformTo(NAD83_Alaska_Albers)
-                    area = new_bbox_geom.Area()
-
-                    progress_area += area
-
-                    coll.regions.update(
-                        {'_id': region_oid},
-                        {
-                            '$inc': {
-                                'count': 1,
-                                'area.allocated': area if contained and not overlapped else 0,
-                                'area.buffered': area if overlapped and not contained else 0,
-                            },                                
-                        }
-                    )
-
-                    for level in LEVELS:
-                        _lat, _long, _width, _height = geohash.decode_exactly(current_geohash[0:level])
-
-                        _bbox = geohash.bbox(current_geohash[0:level])
-
-                        _bbox_ring = osgeo.ogr.Geometry(osgeo.ogr.wkbLinearRing)
-                        _bbox_ring.AssignSpatialReference(WGS_84)
-                        _bbox_ring.AddPoint(_bbox['w'], _bbox['n'])
-                        _bbox_ring.AddPoint(_bbox['e'], _bbox['n'])
-                        _bbox_ring.AddPoint(_bbox['e'], _bbox['s'])
-                        _bbox_ring.AddPoint(_bbox['w'], _bbox['s'])
-                        _bbox_ring.AddPoint(_bbox['w'], _bbox['n'])
-        
-                        _bbox_geom = osgeo.ogr.Geometry(osgeo.ogr.wkbPolygon) #create a polygon
-                        _bbox_geom.AssignSpatialReference(WGS_84)
-        
-                        _bbox_geom.AddGeometry(_bbox_ring)
-
-                        _overlapped = geom.Overlaps(bbox_geom)
-                        _contained = geom.Contains(bbox_geom)
-
-                        if _overlapped:
-                            _bbox_geom = geom.Intersection(_bbox_geom)
-                            #_bbox_geom = geom.Union(_bbox_geom)
-        
-                        _doc = coll.lots.find_and_modify(
-                            {
-                                'hash': current_geohash[0:level],
-                                'region._id': region_oid
-                            },
-                            {
-                                '$set': {
-                                    'hash': current_geohash[0:level],
-                                    'region': {
-                                        '_id': region_oid,
-                                        'name': region_name,
-                                    },
-                                    'parent': current_geohash[0:level-1] or current_geohash,
-                                    'state': args.state,
-                                    'buffered': True if (_overlapped and not _contained) and level == PRECISION else False,
-                                    'precision': PRECISION, #Quicky
-                                },
-                                '$inc': {
-                                    'area.allocated': area if _contained and not _overlapped else 0,
-                                    'area.buffered': area if _overlapped and not _contained else 0,
-                                },
-                                '$addToSet': {
-                                    'children': current_geohash[0:level+1]
-                                },
-                            },
-                            upsert = True,
-                        )
-
-                        #Add the big ugly stuff if'n it's new
-                        if not _doc: #New document
-                            coll.lots.update(
-                                {
-                                    'hash': current_geohash[0:level],
-                                    'region._id': region_oid
-                                },
-                                {
-                                    '$set': {
-                                        #'wkb': bson.Binary(bbox_geom.ExportToWkb())
-                                        'json': json.loads(bbox_geom.ExportToJson()),
-                                        'centroid': {'lat': _lat, 'long': _long},                                        
-                                    },
-                                },
-                            )    
-                                
-                #One step to the right... probably faster if we use neighbors correctly.
-                current_geohash = geohash.encode(current_lat, current_bbox['e'] + (current_width/2), precision=PRECISION)
-                if progress_area <= estimated_area:
-                    progress.update(progress_area)
+                ###### Now it's time to make the database parts work out well.
                 
-                #REMOVEME
-                if progress_area >= estimated_area:
-                    break
-            
-            progress.finish()        
+                for parent in [hash[0:p] for p in range(1, len(hash))]: #dynamic precision
+                    specific_area = 'buffer' if is_buffer_lot else 'normal'
+                    lots[parent]['area'][specific_area]['allocated'] += area_square_meters
+                    lots[parent]['area'][specific_area]['available'] += area_square_meters
+                    region['area'][specific_area]['allocated'] += area_square_meters
+                    region['area'][specific_area]['available'] += area_square_meters
+
+            coll.regions.insert(region)
+            coll.lots.insert(lots.itervalues())

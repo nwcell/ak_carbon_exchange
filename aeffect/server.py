@@ -27,6 +27,16 @@ import json
 
 #The fun stuff
 import geohash
+from osgeo import gdal
+import osgeo.ogr
+import osgeo.osr
+
+WGS_84 = osgeo.osr.SpatialReference()
+WGS_84.ImportFromEPSG(4326)
+
+PRECISION = 7 #.. Yeah.. that happen.
+SEGMENT_PRECISION = 0.0001 #not good enough for 8
+BUFFER_PRECISION = 0.0001 # not good enough for 8
 
 ####################################
 ################################################################################
@@ -79,61 +89,138 @@ class JSONTestHandler(BaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self):
-        print 'badabing'
         db = self.settings['mongodb']
 
-        bounds = self.get_argument("bounds")
-        center = self.get_argument("center")
+        ### Process Bounds and Center arguments
 
-        result = yield motor.Op(db.poop.insert, {'i': bounds})
+        view_bounds_str = self.get_argument("bounds")
+        view_center_str = self.get_argument("center")
 
-        if not bounds or not center:
+        if not view_bounds_str or not view_center_str:
             self.write([])
             self.finish()
             return
 
-        south, west, north, east = [float(x) for x in bounds.split(',')]
+        view_bounds_south, view_bounds_west, view_bounds_north, view_bounds_east = [float(x) for x in view_bounds_str.split(',')]
 
-        lat, long = [float(x) for x in center.split(',')]
-        print lat, long
+        view_center_lat, view_center_long = [float(x) for x in view_center_str.split(',')]
 
-        width = abs(north - south)
-        height = abs(east - west)
+        view_bounds_width = abs(view_bounds_north - view_bounds_south)
+        view_bounds_height = abs(view_bounds_east - view_bounds_west)
 
-        print lat, long
-        for precision in [1,2,3,4]:
+        #So not use spacial reference system
+        view_bounds_ring = osgeo.ogr.Geometry(osgeo.ogr.wkbLinearRing)
+        view_bounds_ring.AddPoint(view_bounds_west, view_bounds_north)
+        view_bounds_ring.AddPoint(view_bounds_east, view_bounds_north)
+        view_bounds_ring.AddPoint(view_bounds_east, view_bounds_south)
+        view_bounds_ring.AddPoint(view_bounds_west, view_bounds_south)
+        view_bounds_ring.AddPoint(view_bounds_west, view_bounds_north)
 
-            _lat, _long, _width, _height = geohash.decode_exactly(geohash.encode(lat, long, precision=precision))
+        view_bounds_geom = osgeo.ogr.Geometry(osgeo.ogr.wkbPolygon)
 
-            geohash_center = geohash.encode(lat, long, precision=precision)
+        view_bounds_geom.AddGeometry(view_bounds_ring)
+        view_bounds_area = view_bounds_geom.Area()
+        print "VIEW %.64f" % view_bounds_area
 
-            if _width * 4 <= width or _height * 4 <= height:
-                break            
+        #Nibble method.  Iterate over all geohashes for t
 
-        query = {'parent': {'$in': geohash.expand(geohash_center)}}
+        view_center_hash = geohash.encode(view_center_lat, view_center_long, precision=PRECISION+2)
+
+        print view_center_hash
+        hash_parents = set([])
+        hash_parents_area = 0
+
+        for precision in range(PRECISION,0,-1):
+
+            if hash_parents_area >= view_bounds_area:
+                print "YIIBA"
+                break
+
+            hash_at_precision = view_center_hash[0:precision]
+
+            hash_parents = set([hash_at_precision])
+            hash_parents_area = 0
+
+            for hps in range(8): #iterate out 4 times.. possibly need to move view bounds to match with hash centroid
+                for hash_parent in list(hash_parents):
+                    hash_parents.update(geohash.expand(hash_parent))
+
+            for hash_parent in list(hash_parents):
+                hash_parent_bbox = geohash.bbox(hash_parent)
+
+                #So not use spacial reference system
+                hash_parent_ring = osgeo.ogr.Geometry(osgeo.ogr.wkbLinearRing)
+                hash_parent_ring.AddPoint(hash_parent_bbox['w'], hash_parent_bbox['n'])
+                hash_parent_ring.AddPoint(hash_parent_bbox['e'], hash_parent_bbox['n'])
+                hash_parent_ring.AddPoint(hash_parent_bbox['e'], hash_parent_bbox['s'])
+                hash_parent_ring.AddPoint(hash_parent_bbox['w'], hash_parent_bbox['s'])
+                hash_parent_ring.AddPoint(hash_parent_bbox['w'], hash_parent_bbox['n'])
+            
+                hash_parent_geom = osgeo.ogr.Geometry(osgeo.ogr.wkbPolygon)
+            
+                hash_parent_geom.AddGeometry(hash_parent_ring)
+
+                hash_parent_geom_intersection = view_bounds_geom.Intersection(hash_parent_geom)
+                hash_parent_area = hash_parent_geom_intersection.Area()
+
+                if hash_parent_area:
+                    print "EAT", hash_parent
+                    hash_parents_area += hash_parent_area
+                    hash_parents.add(hash_parent)
+                #else:
+                #    hash_parents.discard(hash_parent)
+
+            print "HASH %.64f" % hash_parents_area, view_bounds_area - 0.001, precision
+
+        hash_parents = set([hp[0:PRECISION-1] for hp in list(hash_parents)])
+        print hash_parents           
+        centroids = []
+     
+        for hash in hash_parents:
+            _lat, _long = geohash.decode(hash)
+            centroids.append({
+                'hash': hash,
+                'arg': True,
+                'lat': _lat,
+                'long': _long,                
+            })
+
+        centroids = []
+        #self.write(bson.json_util.dumps(centroids))
+        #self.finish()
+        #return
+
+        #print lat, long
+        #for precision in range(1, ): #Calculate up to 10th precision if needed
+        #
+        #    _lat, _long, _lat_delta, _long_delta = geohash.decode_exactly(geohash.encode(lat, long, precision=precision))
+        #
+        #    geohash_center = geohash.encode(lat, long, precision=precision)
+        #
+        #    #If the area of the center geohash at this precision is greater than the boundary area?... If so we can do evil.
+        #    if ((_lat_delta * 2) * (_long_delta * 2)) < width * height:
+        #        break            
+
+        query = {'parent': {'$in': list(hash_parents)}}
         print query
-        query = {}
         cursor = db.lots.find(query)
 
         lots = []
 
+        region_set = set([])
+
         while (yield cursor.fetch_next):
             lot = cursor.next_object()
-            print lot
+            lot['lot'] = True
             lot['bbox'] = geohash.bbox(lot['hash'])
-            lot['shortregionname'] = str(lot['region']['_id'])
+            lot['geom']['outline'] = json.loads(osgeo.ogr.Geometry(wkb=lot['geom']['outline']).ExportToJson())
+            region_set.add(lot['region']['_id'])
             lots.append(lot)
+            print lot['region']['_id'], lot['hash'], lot['geom']['outline']['type']
 
+        print len(lots), region_set
 
-        cursor = db.regions.find(query)
-
-        while (yield cursor.fetch_next):
-            lot = cursor.next_object()
-            lot['shortregionname'] = str(lot['name'])
-            print lot
-            lots.append(lot)
-
-        self.write(bson.json_util.dumps(lots))
+        self.write(bson.json_util.dumps(lots + centroids))
         self.finish()
         return
 

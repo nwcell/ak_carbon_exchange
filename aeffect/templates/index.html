@@ -309,7 +309,9 @@
 
   <!-- <script src="javascripts/gmap3.js"></script> -->
 
-  <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script>
+  <!-- <script type="text/javascript" src="http://maps.google.com/maps/api/js?sensor=false"></script> -->
+
+  <script type="text/javascript" src="https://maps.googleapis.com/maps/api/js?v=3.exp&sensor=false&libraries=visualization"></script>
 
   <script src="javascripts/jquery.ui.map.js"></script>
 
@@ -380,40 +382,57 @@ function get_random_color() {
                 //Rects.push(ghRectangle);                
 
                 var that = this;
-
-                jQuery.each(obj.json.coordinates, function(idxx, objx){
-                    var paths = [];
-
-                    jQuery.each(objx, function(idxxx, objxx){
-                        paths.push(new google.maps.LatLng(objxx[1], objxx[0]));
-                    });                    
-
-                    var lotPolygon = new google.maps.Polygon({
-                        paths: paths,
-                        strokeColor: get_random_color(),
-                        strokeOpacity: 0.8,
-                        strokeWeight: 2,
-                        fillColor: get_random_color(),
-                        fillOpacity: 0.05,
-                        that: that,
+                //console.log(idx)
+                //console.log(obj)
+    
+                
+                if(obj.arg == true){
+                    //console.log('argh');
+                    var marker = new google.maps.Marker({
+                        position: new google.maps.LatLng(obj.lat, obj.long),
+                        map: themap,
+                        title: obj.hash
                     });
+                    Rects.push(marker);
+                };
+                
 
-                    google.maps.event.addListener(lotPolygon, 'click', function(shape) { jQuery("#region").text(this.that.shortregionname); jQuery("#state").text(this.that.state); });
+                if(obj.lot == true){
+                    jQuery.each(obj.geom.outline.coordinates, function(idxx, objx){
+                        var paths = [];
+                        console.log('drawing ' + obj.region.slug)
+                        jQuery.each(objx, function(idxxx, objxx){
+                            paths.push(new google.maps.LatLng(objxx[1], objxx[0]));
+                        });                    
+    
+                        var lotPolygon = new google.maps.Polygon({
+                            paths: paths,
+                            strokeColor: "#000000",
+                            strokeOpacity: 0.8,
+                            strokeWeight: 2,
+                            fillColor: get_random_color(),
+                            fillOpacity: 0.05,
+                            that: that,
+                            title: obj.hash,
+                        });
+    
+                        google.maps.event.addListener(lotPolygon, 'click', function(shape) { jQuery("#region").text(this.that.region.slug); jQuery("#state").text(this.that.state); });
+    
+                        google.maps.event.addListener(lotPolygon, 'mouseover', function() { this.setOptions({'fillOpacity': .5}); });
+                        google.maps.event.addListener(lotPolygon, 'mouseout', function() { this.setOptions({'fillOpacity': 0.05}); });
+    
+                        lotPolygon.setMap(themap);
+                        //console.log('drawn')
+                        Rects.push(lotPolygon);
+                    });
+                }
 
-                    google.maps.event.addListener(lotPolygon, 'mouseover', function() { this.setOptions({'fillOpacity': .5}); jQuery("#region").text(this.that.shortregionname); jQuery("#state").text(this.that.state); });
-                    google.maps.event.addListener(lotPolygon, 'mouseout', function() { this.setOptions({'fillOpacity': 0.05}); jQuery("#region").text(this.that.shortregionname); jQuery("#state").text(this.that.state); });
-
-                    lotPolygon.setMap(themap);
-                    Rects.push(lotPolygon);
-                });
-
-                //var lotLatLng = new google.maps.LatLng(obj.centroid.lat, obj.centroid.long);
-                //var lot = new google.maps.Marker({
-                //    position: lotLatLng,
-                //    title:obj.geohash,
-                //    map: themap,
-                //    region: obj.region,
-                //});
+                /*
+                if (obj.geom.centroid){
+                    //console.log(obj.centroid);
+                    // heatmapData.push(new google.maps.LatLng(obj.centroid.coordinates[1], obj.centroid.coordinates[0]));
+                };
+                */
 
             });
         };
@@ -423,7 +442,7 @@ function get_random_color() {
     
     // Load Function
     jQuery(function () {
-        jQuery('#map_canvas').gmap({ 'center': '64.735967,-151.262664', 'zoom': 4 }).bind(
+        jQuery('#map_canvas').gmap({ 'center': '64.735967,-151.262664', 'zoom': 6 }).bind(
             'init',
             function (event, map) {
                 jQuery(map).idle(function () {
