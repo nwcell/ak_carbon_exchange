@@ -251,8 +251,6 @@ if __name__ == "__main__":
                 lots[hash]['geom']['bounds'] = bson.Binary(hash_bbox_geom.ConvexHull().ExportToWkb())
                 lots[hash]['geom']['outline'] = bson.Binary(hash_geom.ConvexHull().ExportToWkb())
 
-                print lots[hash]
-
                 ### Add Children to Parents
                 hash_parent = lots[hash]['parent']
                 if hash_parent:
