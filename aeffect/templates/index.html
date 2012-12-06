@@ -11,7 +11,7 @@
   <!-- Set the viewport width to device width for mobile -->
   <meta name="viewport" content="width=device-width" />
 
-  <title>Welcome to Foundation | Grid</title>
+  <title>Alaska Carbon Exchange :: Home</title>
 
   <!-- Included CSS Files (Uncompressed) -->
   <!--
@@ -115,7 +115,7 @@
           </li>
         <li class="divider"></li>
         <li>
-          <a href="/">Login</a>
+          <a href="/login">Login</a>
         </li>
       </ul>
     </section>
@@ -129,8 +129,12 @@
   <ul class="breadcrumbs">
       <li><a href="#">Home</a></li>
       <li><a href="#">Regions</a></li>
-      <li class="current"><a href="#" id="state">{{ state }}</a></li>
-      <li class="unavailable"><a href="#" id="region">Please select a region by clicking on it on the map or from the upper menu</a></li>
+      <li><a href="#" id="state">{{ state }}</a></li>
+      {% if region_name %}
+          <li class="current" id="region-li"><a href="#" id="region">{{ region_name }}</a></li>
+      {% else %}
+          <li class="unavailable" id="region-li"><a href="#" id="region">Please select a region by clicking on it on the map or from the upper menu</a></li>
+      {% end %}
   </ul>
 
   <!-- Main Grid Section -->
@@ -317,8 +321,9 @@
   <script src="/javascripts/jquery.mustache.js"></script>
 
   <script type="text/javascript">
-    circles = 0;
     var Rects = [];
+    var region_slug = "{{ region_slug }}";
+    var region_name = "{{ region_name }}";
 
     function myFunction(data) {
         console.log('starting');
@@ -434,8 +439,18 @@
                             window.location.href = "/region/" + this.that.slug;
                         });
     
-                        google.maps.event.addListener(lotPolygon, 'mouseover', function() { this.setOptions({'strokeWeight': 20}); });
-                        google.maps.event.addListener(lotPolygon, 'mouseout', function() { this.setOptions({'strokeWeight': 10}); });
+                        google.maps.event.addListener(lotPolygon, 'mouseover', function() {
+                            this.setOptions({'strokeWeight': 20}); 
+                            jQuery("#region").html(this.that.name + " <b>(Click the region for more information)</b>");
+                            jQuery("#region-li").toggleClass('unavailable');
+                            jQuery("#region-li").toggleClass('current');
+                        });
+                        google.maps.event.addListener(lotPolygon, 'mouseout', function() {
+                            this.setOptions({'strokeWeight': 10});
+                            jQuery("#region").text("Please select a region by clicking on it on the map or from the upper menu");
+                            jQuery("#region-li").toggleClass('unavailable');
+                            jQuery("#region-li").toggleClass('current');
+                        });
     
                         lotPolygon.setMap(themap);
                         //console.log('drawn')

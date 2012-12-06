@@ -82,7 +82,7 @@ class MainHandler(BaseHandler):
     @tornado.gen.engine
     def get(self):
         self.session.set('foo', ['bar', 'baz'])
-        self.render('index.html', all_regions={'Testing': []}, state = "Alaska" , region_slug = "")
+        self.render('index.html', all_regions={'Testing': []}, state = "Alaska" , region_slug = "", region_name = "")
 
 ################################################################################
 ## ┏━┓┏━╸┏━╸╻┏━┓┏┓╻╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
@@ -102,7 +102,33 @@ class RegionHandler(BaseHandler):
 
         region = yield motor.Op(db.regions.find_one, query)
 
-        self.render('region.html', all_regions={'Testing': []}, envelope=region['geom']['envelope'] , region_slug = region_slug)
+        self.render('region.html', all_regions={'Testing': []}, state = "Alaska", envelope=region['geom']['envelope'] , region_slug = region_slug, region_name = region['name'])
+
+################################################################################
+## ╻  ┏━┓┏━╸╻┏┓╻┏━╸┏━┓┏━┓┏┳┓
+## ┃  ┃ ┃┃╺┓┃┃┗┫┣╸ ┃ ┃┣┳┛┃┃┃
+## ┗━╸┗━┛┗━┛╹╹ ╹╹  ┗━┛╹┗╸╹ ╹
+
+class LoginHandler(BaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+        self.session.set('foo', ['bar', 'baz'])
+        self.render('login.html')
+
+################################################################################
+## ╻  ┏━┓┏━╸┏━┓╻ ╻╺┳╸╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
+## ┃  ┃ ┃┃╺┓┃ ┃┃ ┃ ┃ ┣━┫┣━┫┃┗┫ ┃┃┃  ┣╸ ┣┳┛
+## ┗━╸┗━┛┗━┛┗━┛┗━┛ ╹ ╹ ╹╹ ╹╹ ╹╺┻┛┗━╸┗━╸╹┗╸
+
+class LogoutHandler(BaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+        self.session.set('foo', ['bar', 'baz'])
+        self.render('login.html')
 
 ################################################################################
 ##  ┏┓┏━┓┏━┓┏┓╻╺┳╸┏━╸┏━┓╺┳╸╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
@@ -154,11 +180,25 @@ class JSONTestHandler(BaseHandler):
 
         possible_hashes = set(list('0123456789bcdefghjkmnpqrstuvwxyz'))
 
-        end_precision = view_zoom / 3 #perfect
+        if view_zoom == 5: end_precision = 0
+        if view_zoom == 6: end_precision = 0
+        if view_zoom == 7: end_precision = 1
+        if view_zoom == 8: end_precision = 2
+        if view_zoom == 9: end_precision = 2
+        if view_zoom == 10: end_precision = 3
+        if view_zoom == 11: end_precision = 4
+        if view_zoom == 12: end_precision = 5
+        if view_zoom == 13: end_precision = 6
+        if view_zoom == 14: end_precision = 6
+        if view_zoom == 15: end_precision = 7
+
+        end_precision = (view_zoom / 3) - 1 #perfect
         if end_precision > PRECISION:
             end_precision = PRECISION
+        if end_precision < 0:
+            end_precision = 0
 
-        print end_precision, '!!!'
+        ##print end_precision, '!!!'
 
         for precision in range(1,end_precision+1):
             new_possible_hashes = set([])
@@ -181,7 +221,7 @@ class JSONTestHandler(BaseHandler):
                 possible_hash_area = possible_hash_geom_intersection.Area()
 
                 if possible_hash_area or view_center_hash.startswith(possible_hash):
-                    print "!!!!", possible_hash, view_center_hash
+                    ##print "!!!!", possible_hash, view_center_hash
                     for hash_char in '0123456789bcdefghjkmnpqrstuvwxyz':
                         new_possible_hashes.add(possible_hash + hash_char)
 
@@ -232,7 +272,7 @@ class JSONTestHandler(BaseHandler):
 
         query = {'parent': {'$in': list(possible_hashes)}}
         cursor = db.lots.find(query)
-
+        print query
         while (yield cursor.fetch_next):
             lot = cursor.next_object()
             lot['lot'] = True
@@ -309,8 +349,10 @@ def serve(listenuri, mongodburi):
             #tornado.web.URLSpec(r'/api/document/link$', APIDocumentLinkHandler),
             #tornado.web.URLSpec(r"/$", tornado.web.RedirectHandler, kwargs=dict(url='/dashboard')), #Temporary pending main advert/news page
             tornado.web.URLSpec(r"/jsontest$", JSONTestHandler),
-            tornado.web.URLSpec(r"/$", MainHandler, name='index'),
             tornado.web.URLSpec(r"/region/(.*)", RegionHandler),
+            tornado.web.URLSpec(r"/login$", LoginHandler),
+            tornado.web.URLSpec(r"/logout$", LogoutHandler),
+            tornado.web.URLSpec(r"/$", MainHandler, name='index'),
             tornado.web.URLSpec(r"/(.*)", PageErrorHandler, kwargs=dict(error=404)),
         ],
         **{          

@@ -11,7 +11,7 @@
   <!-- Set the viewport width to device width for mobile -->
   <meta name="viewport" content="width=device-width" />
 
-  <title>Welcome to Foundation | Grid</title>
+  <title>Alaska Carbon Exchange :: Region :: {{ region_name }}</title>
 
   <!-- Included CSS Files (Uncompressed) -->
   <!--
@@ -63,59 +63,19 @@
         <li class="divider"></li>
         <li><a href="#">Visible Regions</a></li>
         <li class="divider"></li>
-        <li class="search">
-          <a href="#">Search</a>
-        </li>
-        <li class="divider"></li>
       </ul>
 
       <!-- Right Nav Section -->
       <ul class="right">
         <li class="divider"></li>
-        <li class="has-dropdown">
-          <a href="#">Main Item 4</a>
-          <ul class="dropdown">
-            <li><label>Section Name</label></li>
-            <li class="has-dropdown">
-              <a href="#" class="">Has Dropdown, Level 1</a>
-              <ul class="dropdown">
-                <li><a href="#">Dropdown Options</a></li>
-                <li><a href="#">Dropdown Options</a></li>
-                <li class="has-dropdown">
-                  <a href="#">Has Dropdown, Level 2</a>
-                  <ul class="dropdown test">
-                    <li><a href="#">Subdropdown Option</a></li>
-                    <li><a href="#">Subdropdown Option</a></li>
-                    <li><a href="#">Subdropdown Option</a></li>
-                  </ul>
-                </li>
-                <li><a href="#">Subdropdown Option</a></li>
-                <li><a href="#">Subdropdown Option</a></li>
-                <li><a href="#">Subdropdown Option</a></li>
-              </ul>
-            </li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li class="divider"></li>
-            <li><label>Section Name</label></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li class="divider"></li>
-            <li><input type="search"></li>
-          </ul>
-        </li>
-        <li class="divider"></li>
           <li class="search">
               <form action="asdf">
-                <input type="search">
+                <input type="search" placeholder="Search...">
               </form>
-          </li>
-            <li class="has-button">
           </li>
         <li class="divider"></li>
         <li>
-          <a href="/">Login</a>
+          <a href="/login">Login</a>
         </li>
       </ul>
     </section>
@@ -129,8 +89,12 @@
   <ul class="breadcrumbs">
       <li><a href="#">Home</a></li>
       <li><a href="#">Regions</a></li>
-      <li class="current"><a href="#" id="state">State</a></li>
-      <li class="unavailable"><a href="#" id="region">Please select a region by clicking on it on the map or from the upper menu</a></li>
+      <li><a href="#" id="state">{{ state }}</a></li>
+      {% if region_name %}
+          <li class="current" id="region-li"><a href="#" id="region">{{ region_name }}</a></li>
+      {% else %}
+          <li class="unavailable" id="region-li"><a href="#" id="region">Please select a region by clicking on it on the map or from the upper menu</a></li>
+      {% end %}
   </ul>
 
   <!-- Main Grid Section -->
@@ -317,19 +281,9 @@
   <script src="/javascripts/jquery.mustache.js"></script>
 
   <script type="text/javascript">
-    circles = 0
     var Rects = [];
-
-function get_random_color() {
-    var letters = '0123456789ABCDEF'.split('');
-    var color = '#';
-    for (var i = 0; i < 6; i++ ) { // >
-        color += letters[Math.round(Math.random() * 15)];
-    };
-    return color;
-};
-
-
+    var region_slug = "{{ region_slug }}";
+    var region_name = "{{ region_name }}";
 
     function myFunction(data) {
         console.log('starting');
@@ -349,7 +303,7 @@ function get_random_color() {
 
                 var themap = jQuery('#map_canvas').gmap('get', 'map');
 
-                console.log(obj)
+                //console.log(obj)
                 //var swLatLng = new google.maps.LatLng(obj.bbox.s, obj.bbox.w);
                 //var neLatLng = new google.maps.LatLng(obj.bbox.n, obj.bbox.e);
                 //var rectBounds = new google.maps.LatLngBounds(swLatLng, neLatLng);
@@ -380,55 +334,28 @@ function get_random_color() {
                     Rects.push(marker);
                 };
                 
-
-/////////////////
                 if(obj.lot == true){
 
-///////////////////////////////
-
-
-/*
-                  jQuery.each(obj.geom.bounds.coordinates, function(idxx, objx){
-                        var paths = [];
-                        jQuery.each(objx, function(idxxx, objxx){
-                            paths.push(new google.maps.LatLng(objxx[1], objxx[0]));
-                        });                    
-    
-                        var lotPolygon = new google.maps.Polygon({
-                            paths: paths,
-                            strokeColor: "#FFFFFF",
-                            strokeOpacity: 0.5,
-                            strokeWeight: 1,
-                            fillColor: get_random_color(),
-                            fillOpacity: 0.05,
-                            that: that,
-                            title: obj.hash,
-                        });
-    
-                        google.maps.event.addListener(lotPolygon, 'click', function(shape) { jQuery("#region").text(this.that.region.slug); jQuery("#state").text(this.that.state); });
-    
-                        google.maps.event.addListener(lotPolygon, 'mouseover', function() { this.setOptions({'fillOpacity': .5}); this.setOptions({'strokeWeight': 4}); });
-                        google.maps.event.addListener(lotPolygon, 'mouseout', function() { this.setOptions({'fillOpacity': 0.05}); this.setOptions({'strokeWeight': 2}); });
-    
-                        lotPolygon.setMap(themap);
-                        //console.log('drawn')
-                        Rects.push(lotPolygon);
-                  });
-
-
-*/
                   jQuery.each(obj.geom.outline.coordinates, function(idx, objx){
                         var paths = [];
                         jQuery.each(objx, function(idxxx, objxx){
                             paths.push(new google.maps.LatLng(objxx[1], objxx[0]));
                         });                    
     
+
+                        var color = "#A0A0A0";
+
+                        if(obj.flags.buffer){
+                            color = "#303030";
+                        };
+
                         var lotPolygon = new google.maps.Polygon({
                             paths: paths,
-                            strokeColor: "#A0A0A0",
+                            strokeColor: color,
                             strokeOpacity: 1,
                             strokeWeight: 2,
-                            fillColor: get_random_color(),
+                            strokePosition: google.maps.StrokePosition.OUTSIDE,
+                            fillColor: color,
                             fillOpacity: 0.0,
                             that: that,
                             zIndex: 3,
@@ -439,29 +366,40 @@ function get_random_color() {
                             window.location.href = "/region/" + this.that.region.slug;
                         });
     
-                        google.maps.event.addListener(lotPolygon, 'mouseover', function() { this.setOptions({'fillOpacity': .5}); this.setOptions({'strokeWeight': 4}); });
-                        google.maps.event.addListener(lotPolygon, 'mouseout', function() { this.setOptions({'fillOpacity': 0.0}); this.setOptions({'strokeWeight': 2}); });
+                        google.maps.event.addListener(lotPolygon, 'mouseover', function() {
+                            this.setOptions({'fillOpacity': .5});
+                            this.setOptions({'strokeWeight': 4});
+                            jQuery("#region").html(this.that.region.name + " <b>(Click the region for more information)</b>");
+                        });
+                        google.maps.event.addListener(lotPolygon, 'mouseout', function() {
+                            this.setOptions({'fillOpacity': 0.0});
+                            this.setOptions({'strokeWeight': 2});
+                            jQuery("#region").text("{{ region_name }}");
+                        });
     
                         lotPolygon.setMap(themap);
                         //console.log('drawn')
                         Rects.push(lotPolygon);
                   });
-///////////////////////////////
+                };
 
-                }
-///////////////// IF lot
-
-/////////////////
                 if(obj.region == true){
                   jQuery.each(obj.geom.outline.coordinates, function(idx, objx){
                         var paths = [];
                         jQuery.each(objx, function(idxxx, objxx){
                             paths.push(new google.maps.LatLng(objxx[1], objxx[0]));
                         });                    
+
+                        var color = "#C0C0C0";
+
+                        if(obj.slug == "{{ region_slug }}"){
+                            color = "#C00000";
+                        };
+
     
                         var lotPolygon = new google.maps.Polygon({
                             paths: paths,
-                            strokeColor: "#C0C0C0",
+                            strokeColor: color,
                             strokeOpacity: 0.25,
                             strokeWeight: 10,
                             strokePosition: google.maps.StrokePosition.OUTSIDE,
@@ -476,18 +414,21 @@ function get_random_color() {
                             window.location.href = "/region/" + this.that.slug;
                         });
     
-                        google.maps.event.addListener(lotPolygon, 'mouseover', function() { this.setOptions({'strokeWeight': 20}); });
-                        google.maps.event.addListener(lotPolygon, 'mouseout', function() { this.setOptions({'strokeWeight': 10}); });
+                        google.maps.event.addListener(lotPolygon, 'mouseover', function() {
+                            this.setOptions({'strokeWeight': 20}); 
+                            jQuery("#region").html(this.that.name + " <b>(Click the region for more information)</b>");
+                        });
+                        google.maps.event.addListener(lotPolygon, 'mouseout', function() {
+                            this.setOptions({'strokeWeight': 10});
+                            jQuery("#region").text("{{ region_name }}");
+                        });
     
                         lotPolygon.setMap(themap);
                         //console.log('drawn')
                         Rects.push(lotPolygon);
                   });
-///////////////////////////////
 
-                }
-///////////////// IF regoin
-
+                };
             });
 
 
@@ -502,7 +443,6 @@ function get_random_color() {
         jQuery('#map_canvas').gmap({ 'center': '64.735967,-151.262664', 'zoom': 5, 'minZoom': 5, 'maxZoom': 15}).bind(
             'init',
             function (event, map) {
-                console.log({{ envelope }})                
 
                 var sw = new google.maps.LatLng({{ envelope[2] }}, {{ envelope[0] }});
                 var ne = new google.maps.LatLng({{ envelope[3] }}, {{ envelope[1] }});
