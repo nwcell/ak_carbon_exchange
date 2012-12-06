@@ -82,7 +82,7 @@ class MainHandler(BaseHandler):
     @tornado.gen.engine
     def get(self):
         self.session.set('foo', ['bar', 'baz'])
-        self.render('index.html', all_regions={'Testing': []} )
+        self.render('index.html', all_regions={'Testing': []}, state = "Alaska" , region_slug = "")
 
 ################################################################################
 ## ┏━┓┏━╸┏━╸╻┏━┓┏┓╻╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
@@ -102,7 +102,7 @@ class RegionHandler(BaseHandler):
 
         region = yield motor.Op(db.regions.find_one, query)
 
-        self.render('region.html', all_regions={'Testing': []}, envelope=region['geom']['envelope'] )
+        self.render('region.html', all_regions={'Testing': []}, envelope=region['geom']['envelope'] , region_slug = region_slug)
 
 ################################################################################
 ##  ┏┓┏━┓┏━┓┏┓╻╺┳╸┏━╸┏━┓╺┳╸╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓

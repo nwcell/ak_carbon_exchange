@@ -129,7 +129,7 @@
   <ul class="breadcrumbs">
       <li><a href="#">Home</a></li>
       <li><a href="#">Regions</a></li>
-      <li class="current"><a href="#" id="state">State</a></li>
+      <li class="current"><a href="#" id="state">{{ state }}</a></li>
       <li class="unavailable"><a href="#" id="region">Please select a region by clicking on it on the map or from the upper menu</a></li>
   </ul>
 
@@ -317,19 +317,8 @@
   <script src="/javascripts/jquery.mustache.js"></script>
 
   <script type="text/javascript">
-    circles = 0
+    circles = 0;
     var Rects = [];
-
-function get_random_color() {
-    var letters = '0123456789ABCDEF'.split('');
-    var color = '#';
-    for (var i = 0; i < 6; i++ ) { // >
-        color += letters[Math.round(Math.random() * 15)];
-    };
-    return color;
-};
-
-
 
     function myFunction(data) {
         console.log('starting');
@@ -349,7 +338,7 @@ function get_random_color() {
 
                 var themap = jQuery('#map_canvas').gmap('get', 'map');
 
-                console.log(obj)
+                //console.log(obj)
                 //var swLatLng = new google.maps.LatLng(obj.bbox.s, obj.bbox.w);
                 //var neLatLng = new google.maps.LatLng(obj.bbox.n, obj.bbox.e);
                 //var rectBounds = new google.maps.LatLngBounds(swLatLng, neLatLng);
@@ -380,55 +369,28 @@ function get_random_color() {
                     Rects.push(marker);
                 };
                 
-
-/////////////////
                 if(obj.lot == true){
 
-///////////////////////////////
-
-
-/*
-                  jQuery.each(obj.geom.bounds.coordinates, function(idxx, objx){
-                        var paths = [];
-                        jQuery.each(objx, function(idxxx, objxx){
-                            paths.push(new google.maps.LatLng(objxx[1], objxx[0]));
-                        });                    
-    
-                        var lotPolygon = new google.maps.Polygon({
-                            paths: paths,
-                            strokeColor: "#FFFFFF",
-                            strokeOpacity: 0.5,
-                            strokeWeight: 1,
-                            fillColor: get_random_color(),
-                            fillOpacity: 0.05,
-                            that: that,
-                            title: obj.hash,
-                        });
-    
-                        google.maps.event.addListener(lotPolygon, 'click', function(shape) { jQuery("#region").text(this.that.region.slug); jQuery("#state").text(this.that.state); });
-    
-                        google.maps.event.addListener(lotPolygon, 'mouseover', function() { this.setOptions({'fillOpacity': .5}); this.setOptions({'strokeWeight': 4}); });
-                        google.maps.event.addListener(lotPolygon, 'mouseout', function() { this.setOptions({'fillOpacity': 0.05}); this.setOptions({'strokeWeight': 2}); });
-    
-                        lotPolygon.setMap(themap);
-                        //console.log('drawn')
-                        Rects.push(lotPolygon);
-                  });
-
-
-*/
                   jQuery.each(obj.geom.outline.coordinates, function(idx, objx){
                         var paths = [];
                         jQuery.each(objx, function(idxxx, objxx){
                             paths.push(new google.maps.LatLng(objxx[1], objxx[0]));
                         });                    
     
+
+                        var color = "#A0A0A0";
+
+                        if(obj.flags.buffer){
+                            color = "#303030";
+                        };
+
                         var lotPolygon = new google.maps.Polygon({
                             paths: paths,
-                            strokeColor: "#A0A0A0",
+                            strokeColor: color,
                             strokeOpacity: 1,
                             strokeWeight: 2,
-                            fillColor: get_random_color(),
+                            strokePosition: google.maps.StrokePosition.OUTSIDE,
+                            fillColor: color,
                             fillOpacity: 0.0,
                             that: that,
                             zIndex: 3,
@@ -446,12 +408,8 @@ function get_random_color() {
                         //console.log('drawn')
                         Rects.push(lotPolygon);
                   });
-///////////////////////////////
+                };
 
-                }
-///////////////// IF lot
-
-/////////////////
                 if(obj.region == true){
                   jQuery.each(obj.geom.outline.coordinates, function(idx, objx){
                         var paths = [];
@@ -483,11 +441,8 @@ function get_random_color() {
                         //console.log('drawn')
                         Rects.push(lotPolygon);
                   });
-///////////////////////////////
 
-                }
-///////////////// IF regoin
-
+                };
             });
 
 
@@ -507,7 +462,7 @@ function get_random_color() {
                 });
             }
         );
-    });
+    });    
     
   </script>
 

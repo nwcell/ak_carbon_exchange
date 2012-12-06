@@ -148,6 +148,17 @@ if __name__ == "__main__":
                             'available': 0,
                         }
                     },
+                    'holding': {
+                        'unit': 'usd',
+                        'normal': {
+                            'allocated': 0,
+                            'available': 0,
+                        },
+                    },
+                    'flags': {
+                        'visble': True,
+                        'estimated': False,
+                    },
                     'dates': {
                         'imported': NOW,
                         'estimated': None,
@@ -209,9 +220,17 @@ if __name__ == "__main__":
                             'available': 0,
                         }
                     },
+                    'holding': {
+                        'unit': 'usd',
+                        'normal': {
+                            'allocated': 0,
+                            'available': 0,
+                        },
+                    },
                     'flags': {
                         'buffer': False,
-                        'normal': False,
+                        'normal': True,
+                        'estimated': False,
                     },
                     'dates': {
                         'imported': NOW,
@@ -277,7 +296,11 @@ if __name__ == "__main__":
                 hash_bbox_area = hash_bbox_geom.Area()
                 hash_geom_area = hash_geom.Area()
 
-                is_buffer_lot = (hash_bbox_area != hash_geom_area) and len(hash) == PRECISION
+                is_buffer_lot = (hash_bbox_area != hash_geom_area)
+
+                if is_buffer_lot:
+                    lots[hash]['flags']['normal'] = False
+                    lots[hash]['flags']['buffer'] = True
 
                 #convert to appropriate meter projection
                 
