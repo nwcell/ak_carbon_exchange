@@ -85,6 +85,29 @@ class MainHandler(BaseHandler):
         self.render('index.html', all_regions={'Testing': []} )
 
 ################################################################################
+## ┏━┓┏━╸┏━╸╻┏━┓┏┓╻╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
+## ┣┳┛┣╸ ┃╺┓┃┃ ┃┃┗┫┣━┫┣━┫┃┗┫ ┃┃┃  ┣╸ ┣┳┛
+## ╹┗╸┗━╸┗━┛╹┗━┛╹ ╹╹ ╹╹ ╹╹ ╹╺┻┛┗━╸┗━╸╹┗╸
+
+class RegionHandler(BaseHandler):
+
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self, region_slug):
+        db = self.settings['mongodb']
+
+        self.session.set('foo', ['bar', 'baz'])
+
+        query = {'slug': region_slug}
+
+        region = yield motor.Op(db.regions.find_one, query)
+
+        self.render('region.html', all_regions={'Testing': []}, envelope=region['geom']['envelope'] )
+
+################################################################################
+##  ┏┓┏━┓┏━┓┏┓╻╺┳╸┏━╸┏━┓╺┳╸╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
+##   ┃┗━┓┃ ┃┃┗┫ ┃ ┣╸ ┗━┓ ┃ ┣━┫┣━┫┃┗┫ ┃┃┃  ┣╸ ┣┳┛
+## ┗━┛┗━┛┗━┛╹ ╹ ╹ ┗━╸┗━┛ ╹ ╹ ╹╹ ╹╹ ╹╺┻┛┗━╸┗━╸╹┗╸
 
 class JSONTestHandler(BaseHandler):
 
@@ -127,7 +150,7 @@ class JSONTestHandler(BaseHandler):
         
         view_center_hash = geohash.encode(view_center_lat, view_center_long, precision=32)
 
-        print "VIEW %.64f" % view_bounds_area
+        ###print "VIEW %.64f" % view_bounds_area
 
         possible_hashes = set(list('0123456789bcdefghjkmnpqrstuvwxyz'))
 
@@ -223,7 +246,7 @@ class JSONTestHandler(BaseHandler):
         while (yield cursor.fetch_next):
             region = cursor.next_object()
             region['region'] = True
-            print region
+            ###print region
             regions.append(region)
 
         #print len(lots), region_set
@@ -287,6 +310,7 @@ def serve(listenuri, mongodburi):
             #tornado.web.URLSpec(r"/$", tornado.web.RedirectHandler, kwargs=dict(url='/dashboard')), #Temporary pending main advert/news page
             tornado.web.URLSpec(r"/jsontest$", JSONTestHandler),
             tornado.web.URLSpec(r"/$", MainHandler, name='index'),
+            tornado.web.URLSpec(r"/region/(.*)", RegionHandler),
             tornado.web.URLSpec(r"/(.*)", PageErrorHandler, kwargs=dict(error=404)),
         ],
         **{          

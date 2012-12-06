@@ -502,12 +502,21 @@ function get_random_color() {
         jQuery('#map_canvas').gmap({ 'center': '64.735967,-151.262664', 'zoom': 5, 'minZoom': 5, 'maxZoom': 15}).bind(
             'init',
             function (event, map) {
+                console.log({{ envelope }})                
+
+                var sw = new google.maps.LatLng({{ envelope[2] }}, {{ envelope[0] }});
+                var ne = new google.maps.LatLng({{ envelope[3] }}, {{ envelope[1] }});
+                var swne = new google.maps.LatLngBounds(sw, ne);
+                console.log(swne);
+                map.fitBounds(swne);
+                map.panToBounds(swne);
+
                 jQuery(map).idle(function () {
                     jQuery.getJSON('/jsontest', {'zoom': map.getZoom(), 'center': map.getCenter().toUrlValue(), 'bounds': map.getBounds().toUrlValue()}, function(data) { myFunction(data); });
                 });
             }
         );
-    });
+    });    
     
   </script>
 
