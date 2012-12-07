@@ -97,55 +97,15 @@
       {% end %}
   </ul>
 
-<div class="row panel">
-
-        <h1>Charge $10 with Stripe</h1>
-<form action="" method="POST" id="payment-form">
-
-    <label>Card Number</label>
-
-    <div class="row">
-      <div class="eight columns">
-        <input type="text" placeholder="XXXX-XXXX-XXXX-XXXX" size="20" autocomplete="off" class="card-number">
-        <small class='error' id='card-number-error' style='display: none'></small>
-      </div>
-      <div class="four columns">
-        <input type="text" placeholder="CVC" size="4" autocomplete="off" class="card-cvc">
-        <small class='error' id='card-cvc-error' style='display: none'></small>
-      </div>
-    </div>
-
-    <label>Expiration Date (MM/YYYY)</label>
-
-    <div class="row">
-      <div class="eight columns">
-        <input type="text" placeholder="MM" size="2" class="card-expiry-month">
-        <small class='error' id='card-expiry-month' style='display: none'></small>
-      </div>
-      <div class="four columns">
-        <input type="text" placeholder="YYYY" size="4" class="card-expiry-year">
-        <small class='error' id='card-expiry-year' style='display: none'></small>
-      </div>
-    </div>
-
-    <button type="submit" class="submit-button button">Submit Payment</button>
-
-</form>
-
-</div>
 <div class="eleven centered columns">
 
   <!-- Main Grid Section -->
-  <div class="row panel">
-    <h2>{{ region['name'] }}</h2>
-  </div>
 
   <div class="panel">
     <h3>Be an eco hero!</h3>
     <h5 class="subheader">There's a great way to protect the environment right after the button below!</h5>
     <a class="button" href="forms.php">Protect the environment by holding land &raquo;</a>
   </div>
-
 
   <div class="row">
 

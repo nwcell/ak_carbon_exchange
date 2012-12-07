@@ -63,12 +63,14 @@ REGION_INC = 0
 
 class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycket.notification.NotificationMixin):
 
-    def update_pages(self, inbounder, oid):
+    def update_pages(self, oid, extratouch=None):
         mongodb = self.settings['mongodb']
-        inbound_dir = os.path.join(self.settings['inbound_path'], inbounder, 'pages')
+        inbound_dir = os.path.join(self.settings['inbound_path'], str(oid), 'pages')
 
         try:
             os.makedirs(inbound_dir)
+            if extratouch:
+                open(os.path.join(inbound_dir, extratouch), 'w').write('')
         except:
             pass
 
@@ -87,9 +89,16 @@ class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycke
                     content = ''
 
                 if content:
-                    mongodb.pages.update(
+                    print mongodb.pages.update(
                         {'user._id': oid, 'type': f},
-                        {'$set': {'data': markdown.markdown(content)}}
+                        {'$set': {
+                                'data': content,
+                                #'data': markdown.markdown(content), #avoid for now
+                                'type': f,
+                                'user._id': oid,
+                            }
+                        },
+                        upsert=True,
                     )
             
     def update_region_cache(self):
@@ -152,7 +161,7 @@ class MainHandler(BaseHandler):
     def get(self):
         motordb = self.settings['motordb']
         self.session.set('foo', ['bar', 'baz'])
-        self.update_pages(self.settings['siteuserinbounder'], self.settings['siteuser'])
+        self.update_pages(self.settings['siteuser'], 'site')
 
         content_html = yield motor.Op(motordb.pages.find_one, {
                             'user._id': self.settings['siteuser'],
@@ -183,11 +192,15 @@ class RegionHandler(BaseHandler):
 
         region = REGION_SLUG_MAP[region_slug]
 
-        self.update_pages(region['slug'], region['_id'])
+        self.update_pages(region['client']['_id'], region['slug'])
 
-        content_html = ''
 
-        self.render('region.html', content_html = content_html, all_regions={'Testing': []}, state = "Alaska", envelope=region['geom']['envelope'] , region_slug = region_slug, region = region, pretty_region = bson.json_util.dumps(region, indent=2))
+        content_html = yield motor.Op(motordb.pages.find_one, {
+                            'user._id': region['client']['_id'],
+                            'type': region['slug'],
+                        })
+
+        self.render('region.html', content_html = content_html['data'], all_regions={'Testing': []}, state = "Alaska", envelope=region['geom']['envelope'] , region_slug = region_slug, region = region, pretty_region = bson.json_util.dumps(region, indent=2))
 
 ################################################################################
 ## ╻  ┏━┓┏━╸╻┏┓╻┏━╸┏━┓┏━┓┏┳┓
@@ -462,7 +475,6 @@ def serve(listenuri, mongodburi):
             'tornadoredisdb': tornadoredisdb,
             'redisdb': redisdb,
             'siteuser': bson.ObjectId('50bb047f17a78f9c422b45da'),
-            'siteuserinbounder': 'webmaster',
             'regionkey': 'aceregion', #Removed when a region is modified so that each and every instance of Tornado replenishes its region cache.
             'pycket': {
                 'engine': 'redis',
