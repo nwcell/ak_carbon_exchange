@@ -132,15 +132,10 @@
       <hr />
       <div class="row">
         <div class="six columns">
-          <p>&copy; Copyright no one at all. Go to town.</p>
+          <p>&copy; 2012 Alaska carbon exchange</p>
         </div>
-        <div class="six columns">
-          <ul class="link-list right">
-            <li><a href="#">Section 1</a></li>
-            <li><a href="#">Section 2</a></li>
-            <li><a href="#">Section 3</a></li>
-            <li><a href="#">Section 4</a></li>
-          </ul>
+        <div class="six columns right">
+            Developed by: Code Foremen
         </div>
       </div>
     </div>
@@ -263,31 +258,54 @@
                         });                    
     
 
+
                         var color = "#A0A0A0";
 
                         if(obj.flags.buffer){
+                            console.log('buff');
                             color = "#303030";
                         };
 
+                        if(obj.purchase._id){
+                            console.log('buff');
+                            color = "#FFFFFF";
+                        };
+
+                        strokecolor = color;
+
+                        if(obj.value.normal.available != obj.value.normal.total){
+                            strokecolor = "#505050";
+                        };
+                        
+
                         var lotPolygon = new google.maps.Polygon({
                             paths: paths,
-                            strokeColor: color,
+                            strokeColor: strokecolor,
                             strokeOpacity: 1,
                             strokeWeight: 2,
                             strokePosition: google.maps.StrokePosition.OUTSIDE,
                             fillColor: color,
-                            fillOpacity: 0.0,
+                            fillOpacity: (obj.value.normal.available / obj.value.normal.total)/2.0,
                             that: that,
-                            zIndex: 3,
+                            zIndex: 99999 - (obj.value.normal.available / obj.value.normal.total),
                             title: obj.hash,
                         });
     
                         google.maps.event.addListener(lotPolygon, 'click', function(shape) {
                             window.location.href = "/region/" + this.that.region.slug;
                         });
-    
-                        google.maps.event.addListener(lotPolygon, 'mouseover', function() { this.setOptions({'fillOpacity': .5}); this.setOptions({'strokeWeight': 4}); });
-                        google.maps.event.addListener(lotPolygon, 'mouseout', function() { this.setOptions({'fillOpacity': 0.0}); this.setOptions({'strokeWeight': 2}); });
+
+                        google.maps.event.addListener(lotPolygon, 'mouseover', function() {
+                            //this.setOptions({'fillOpacity': .5});
+                            this.setOptions({'strokeWeight': 4});
+                            jQuery("#region").html(this.that.region['name'] + " <b>(Click the region for more information)</b>");
+                        });
+
+                        google.maps.event.addListener(lotPolygon, 'mouseout', function() {
+                            //this.setOptions({'fillOpacity': 0.1});
+                            this.setOptions({'strokeWeight': 2});
+                            jQuery("#region").text("Please select a region by clicking on it on the map or from the upper menu");
+                        });
     
                         lotPolygon.setMap(themap);
                         //console.log('drawn')
@@ -301,14 +319,17 @@
                         jQuery.each(objx, function(idxxx, objxx){
                             paths.push(new google.maps.LatLng(objxx[1], objxx[0]));
                         });                    
-    
+
+                        //console.log(obj.value.normal.available);    
+                        var heat = 255 - Math.floor((obj.value.normal.available / obj.value.normal.total) * 255)
+
                         var lotPolygon = new google.maps.Polygon({
                             paths: paths,
-                            strokeColor: "#C0C0C0",
+                            strokeColor: "rgb(" + heat + ", 0, 0)",
                             strokeOpacity: 0.25,
                             strokeWeight: 10,
                             strokePosition: google.maps.StrokePosition.OUTSIDE,
-                            fillColor: "#C0C0C0",
+                            fillColor: "rgb(" + heat + ", 0, 0)",
                             fillOpacity: 0.25,
                             that: that,
                             zIndex: 1,
