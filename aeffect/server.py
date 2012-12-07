@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 # -*- coding: UTF-8 -*-
 
-"""CarbonEffect Server"""
+"""Aeffect Server"""
 
 import os
 import aeffect
@@ -63,9 +63,9 @@ REGION_INC = 0
 
 class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycket.notification.NotificationMixin):
 
-    def update_pages(self, area, inbounder):
+    def update_pages(self, inbounder, oid):
         mongodb = self.settings['mongodb']
-        inbound_dir = os.path.join(self.settings['inbound_path'], area, inbounder, 'pages')
+        inbound_dir = os.path.join(self.settings['inbound_path'], inbounder, 'pages')
 
         try:
             os.makedirs(inbound_dir)
@@ -88,7 +88,7 @@ class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycke
 
                 if content:
                     mongodb.pages.update(
-                        {'user._id': self.settings['siteuser'], 'type': f},
+                        {'user._id': oid, 'type': f},
                         {'$set': {'data': markdown.markdown(content)}}
                     )
             
@@ -102,9 +102,11 @@ class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycke
         redisdb = self.settings['redisdb']
         regionkey = self.settings['regionkey']
         #redisdb.setnx(regionkey, 0)
-        setted = redisdb.get(regionkey) > REGION_INC
+        cacheinc = redisdb.get(regionkey)
+        setted = cacheinc > REGION_INC
+
         if setted:
-            REGION_INC = setted
+            REGION_INC = cacheinc
             #make thread safe FIXME
             REGION_CACHE = []
             REGION_ID_MAP = {}
@@ -150,7 +152,7 @@ class MainHandler(BaseHandler):
     def get(self):
         motordb = self.settings['motordb']
         self.session.set('foo', ['bar', 'baz'])
-        self.update_pages('user', self.settings['siteuserinbounder'])
+        self.update_pages(self.settings['siteuserinbounder'], self.settings['siteuser'])
 
         content_html = yield motor.Op(motordb.pages.find_one, {
                             'user._id': self.settings['siteuser'],
@@ -177,10 +179,11 @@ class RegionHandler(BaseHandler):
 
         self.session.set('foo', ['bar', 'baz'])
 
-        self.update_pages('region', region_slug)
         self.update_region_cache()
 
         region = REGION_SLUG_MAP[region_slug]
+
+        self.update_pages(region['slug'], region['_id'])
 
         content_html = ''
 
