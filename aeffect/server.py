@@ -63,9 +63,15 @@ REGION_INC = 0
 
 class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycket.notification.NotificationMixin):
 
-    def update_pages(self, inbounder):
+    def update_pages(self, area, inbounder):
         mongodb = self.settings['mongodb']
-        inbound_dir = os.path.join(self.settings['inbound_path'], inbounder, 'pages')
+        inbound_dir = os.path.join(self.settings['inbound_path'], area, inbounder, 'pages')
+
+        try:
+            os.makedirs(inbound_dir)
+        except:
+            pass
+
         if not os.path.exists(os.path.join(inbound_dir, 'DELETE_TO_UPDATE')):
 
             open(os.path.join(inbound_dir, 'DELETE_TO_UPDATE'), 'w').write('')
@@ -144,7 +150,7 @@ class MainHandler(BaseHandler):
     def get(self):
         motordb = self.settings['motordb']
         self.session.set('foo', ['bar', 'baz'])
-        self.update_pages(self.settings['siteuserinbounder'])
+        self.update_pages('user', self.settings['siteuserinbounder'])
 
         content_html = yield motor.Op(motordb.pages.find_one, {
                             'user._id': self.settings['siteuser'],
@@ -171,6 +177,7 @@ class RegionHandler(BaseHandler):
 
         self.session.set('foo', ['bar', 'baz'])
 
+        self.update_pages('region', region_slug)
         self.update_region_cache()
 
         region = REGION_SLUG_MAP[region_slug]
@@ -271,12 +278,14 @@ class JSONTestHandler(BaseHandler):
         if view_zoom == 14: end_precision = 6
         if view_zoom == 15: end_precision = 7
 
-        end_precision = (view_zoom / 3) - 1 #perfect
+        end_precision = (view_zoom / 3) #perfect
         if end_precision > PRECISION:
             end_precision = PRECISION
         if end_precision < 0:
             end_precision = 0
 
+        if view_zoom < 8:
+            end_precision = 0
         ##print end_precision, '!!!'
 
         for precision in range(1,end_precision+1):

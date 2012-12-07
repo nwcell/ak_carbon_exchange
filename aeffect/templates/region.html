@@ -97,14 +97,55 @@
       {% end %}
   </ul>
 
-  <!-- Main Grid Section -->
-  <div class="row">
-    <div class="twelve columns">
-      <div class="row panel">
-        <h2>{{ region['name'] }}</h2>
+<div class="row panel">
+
+        <h1>Charge $10 with Stripe</h1>
+<form action="" method="POST" id="payment-form">
+
+    <label>Card Number</label>
+
+    <div class="row">
+      <div class="eight columns">
+        <input type="text" placeholder="XXXX-XXXX-XXXX-XXXX" size="20" autocomplete="off" class="card-number">
+        <small class='error' id='card-number-error' style='display: none'></small>
+      </div>
+      <div class="four columns">
+        <input type="text" placeholder="CVC" size="4" autocomplete="off" class="card-cvc">
+        <small class='error' id='card-cvc-error' style='display: none'></small>
       </div>
     </div>
+
+    <label>Expiration Date (MM/YYYY)</label>
+
+    <div class="row">
+      <div class="eight columns">
+        <input type="text" placeholder="MM" size="2" class="card-expiry-month">
+        <small class='error' id='card-expiry-month' style='display: none'></small>
+      </div>
+      <div class="four columns">
+        <input type="text" placeholder="YYYY" size="4" class="card-expiry-year">
+        <small class='error' id='card-expiry-year' style='display: none'></small>
+      </div>
+    </div>
+
+    <button type="submit" class="submit-button button">Submit Payment</button>
+
+</form>
+
+</div>
+<div class="eleven centered columns">
+
+  <!-- Main Grid Section -->
+  <div class="row panel">
+    <h2>{{ region['name'] }}</h2>
   </div>
+
+  <div class="panel">
+    <h3>Be an eco hero!</h3>
+    <h5 class="subheader">There's a great way to protect the environment right after the button below!</h5>
+    <a class="button" href="forms.php">Protect the environment by holding land &raquo;</a>
+  </div>
+
 
   <div class="row">
 
@@ -119,7 +160,7 @@
 
     </div>
   </div>
-
+</div>
   <!-- End Grid Section -->
 
   <!-- Footer -->
@@ -199,7 +240,32 @@
   <script src="/javascripts/jquery.ui.map.js"></script>
   <script src="/javascripts/jquery.mustache.js"></script>
 
+  <script type="text/javascript" src="https://js.stripe.com/v1/"></script>
+
   <script type="text/javascript">
+
+    Stripe.setPublishableKey('pk_test_wA2dmuQm8cOPsfdUOGfOLrbf');
+
+    function stripeResponseHandler(status, response) {
+                if (response.error) {
+                    jQuery("#card-number-error").hide();
+                    // re-enable the submit button
+                    jQuery('.submit-button').removeAttr("disabled");
+                    // show the errors on the form
+                    console.log(response.error)
+                    jQuery("#card-number-error").html(response.error.message);
+                    jQuery("#card-number-error").show();
+                } else {
+                    var form$ = jQuery("#payment-form");
+                    // token contains id, last4, and card type
+                    var token = response['id'];
+                    // insert the token into the form so it gets submitted to the server
+                    form$.append("<input type='hidden' name='stripeToken' value='" + token + "' />");
+                    // and submit
+                    form$.get(0).submit();
+                }
+            }
+
     var Rects = [];
     var region_slug = "{{ region['slug'] }}";
     var region_name = "{{ region['name'] }}";
@@ -265,6 +331,7 @@
                         var color = "#A0A0A0";
 
                         if(obj.flags.buffer){
+                            console.log('buff');
                             color = "#303030";
                         };
 
@@ -275,7 +342,7 @@
                             strokeWeight: 2,
                             strokePosition: google.maps.StrokePosition.OUTSIDE,
                             fillColor: color,
-                            fillOpacity: 0.0,
+                            fillOpacity: 0.1,
                             that: that,
                             zIndex: 3,
                             title: obj.hash,
@@ -291,7 +358,7 @@
                             jQuery("#region").html(this.that.region['name'] + " <b>(Click the region for more information)</b>");
                         });
                         google.maps.event.addListener(lotPolygon, 'mouseout', function() {
-                            this.setOptions({'fillOpacity': 0.0});
+                            this.setOptions({'fillOpacity': 0.1});
                             this.setOptions({'strokeWeight': 2});
                             jQuery("#region").text("{{ region['name'] }}");
                         });
@@ -359,6 +426,22 @@
     
     // Load Function
     jQuery(function () {
+
+  jQuery("#payment-form").submit(function(event) {
+    // disable the submit button to prevent repeated clicks
+    jQuery('.submit-button').attr("disabled", "disabled");
+
+    Stripe.createToken({
+        number: jQuery('.card-number').val(),
+        cvc: jQuery('.card-cvc').val(),
+        exp_month: jQuery('.card-expiry-month').val(),
+        exp_year: jQuery('.card-expiry-year').val()
+    }, stripeResponseHandler);
+
+    // prevent the form from submitting with the default action
+    return false;
+  });
+
         jQuery('#map_canvas').gmap({ 'center': '64.735967,-151.262664', 'zoom': 5, 'minZoom': 5, 'maxZoom': 15}).bind(
             'init',
             function (event, map) {
@@ -378,6 +461,7 @@
     });    
     
   </script>
+
 
 </body>
 </html>
