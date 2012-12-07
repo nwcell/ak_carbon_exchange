@@ -2,6 +2,7 @@ Aeffect
 ==================
 
 ```
+pip install wtforms
 pip install sphinx-doc
 pip install tornado greenlet
 pip install markdown
@@ -16,6 +17,8 @@ pip install git+https://github.com/ajdavis/mongo-python-driver.git@motor
 apt-get install gdal-bin python-gdal
 
 apt-get install xapian-tools python-xapian
+
+apt-get install python-pycurl
 
 Install mongodb from 10gen repos
 ```
