@@ -75,7 +75,11 @@
           </li>
         <li class="divider"></li>
         <li>
-          <a href="/login">Login</a>
+          {% if handler.session.get('user') %}
+          <a href="{{ handler.reverse_url('logout') }}">Log Out</a>
+          {% else %}
+          <a href="{{ handler.reverse_url('login') }}">Log In</a>
+          {% end %}
         </li>
       </ul>
     </section>
@@ -95,35 +99,14 @@
 
 <div class="eleven centered columns">
   <div class="row">
-    <div class="twelve columns">
-    
+    <div class="twelve columns">    
       <div class="panel">            
         <div class="row">
-          <div class="nine mobile-four columns">
             <h4>Become a patron of the world!</h4>
             <p>Morbi suscipit nulla eu metus lobortis malesuada a vel felis. Proin ut ultrices lectus. Vestibulum cursus est sed dolor pulvinar vestibulum. Suspendisse potenti. Donec in leo non sem semper iaculis. Integer non mauris purus, interdum tempor dolor. Praesent ac sollicitudin velit. Curabitur in malesuada dolor. Nulla facilisi. Morbi mauris mauris, cursus a tristique eget, commodo a turpis. Curabitur justo magna, pellentesque sit amet tempor sed, eleifend non felis. Ut eu mauris a neque faucibus luctus lobortis id justo. Suspendisse potenti. Praesent at sapien tortor.</p>
-            <p><a href="#" class="secondary button">Purchase a land holding today! &rarr;</a></p>
-          </div>
-          <div class="three columns hide-for-small">
-      <div id="feature">
-        <div data-caption="#captionOne">
-            <img src="http://placehold.it/1000x1000&text=[img 1]" />
-        </div>
-        <div data-caption="#captionTwo">
-            <img src="http://placehold.it/1000x1000&text=[img 2]" />
-        </div>
-        <div data-caption="#captionThree">
-            <img src="http://placehold.it/1000x1000&text=[img 3]" />
+            <p><a href="/purchase" class="button">Purchase a land holding today! &rarr;</a></p>
         </div>
       </div>
-          </div>
-        </div>
-      </div>
-
-<span class="orbit-caption" id="captionOne">Here is a caption...</span>
-<span class="orbit-caption" id="captionTwo">Here is a caption2...</span>
-<span class="orbit-caption" id="captionThree">Here is a caption3...</span>      
-
     </div>
   </div>
 
@@ -132,14 +115,9 @@
   <div class="row">
 
     <div class="eleven columns centered" role="content">
-   <article>
-
         <div class="row">
             {% raw content_html %}
         </div>
-
-      </article>
-
     </div>
   </div>
   <!-- End Grid Section -->
@@ -381,9 +359,6 @@
         );
     });    
 
-     jQuery(window).load(function() {
-         jQuery('#feature').orbit({ fluid: '4x4', directionalNav: false, pauseOnHover: true});
-     });    
   </script>
 
 </body>

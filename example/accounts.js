@@ -78,7 +78,7 @@ db.users.save({
 });
 
 db.users.save({
-    '_id': shane_user,
+    '_id': happy_user,
     'timestamps' : {
         'joined': ISODate("2012-02-09T00:30:13.140Z"),
         'login': null,

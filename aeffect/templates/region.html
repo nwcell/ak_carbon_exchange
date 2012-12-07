@@ -75,7 +75,11 @@
           </li>
         <li class="divider"></li>
         <li>
-          <a href="/login">Login</a>
+          {% if handler.session.get('user') %}
+          <a href="{{ handler.reverse_url('logout') }}">Log Out</a>
+          {% else %}
+          <a href="{{ handler.reverse_url('login') }}">Log In</a>
+          {% end %}
         </li>
       </ul>
     </section>
@@ -104,20 +108,15 @@
   <div class="panel">
     <h3>Be an eco hero!</h3>
     <h5 class="subheader">There's a great way to protect the environment right after the button below!</h5>
-    <a class="button" href="forms.php">Protect the environment by holding land &raquo;</a>
+    <a class="button" href="/purchase">Protect the environment by holding land &raquo;</a>
   </div>
 
   <div class="row">
 
     <div class="eleven columns centered" role="content">
-   <article>
-
         <div class="row">
             {% raw content_html %}
         </div>
-
-      </article>
-
     </div>
   </div>
 </div>

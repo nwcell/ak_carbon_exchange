@@ -1,5 +1,7 @@
 #!/usr/bin/python
 
+import random
+
 import re
 import redis
 
@@ -18,6 +20,8 @@ import osgeo.osr
 import osgeo.ogr
 
 import geohash
+
+import pprint
 
 r = redis.Redis()
 
@@ -94,15 +98,20 @@ if __name__ == "__main__":
 
     coll.regions.create_index([('name', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
     coll.regions.create_index([('slug', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
-    coll.regions.create_index([('patrion._id', pymongo.ASCENDING), ('name', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+    coll.regions.create_index([('order', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+    coll.regions.create_index([('client._id', pymongo.ASCENDING), ('name', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
 
-    coll.lots.create_index([('hash', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
-    coll.lots.create_index([('parent', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
-    coll.lots.create_index([('region._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
-    coll.lots.create_index([('precision', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)]) #make this a uniquely sparse solution
+    coll.lots.create_index([('hash', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('client._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+    coll.lots.create_index([('parent', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('client._id', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+    coll.lots.create_index([('region._id', pymongo.ASCENDING), ('order', pymongo.ASCENDING), ('value.normal.available', pymongo.ASCENDING), ('precision', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+    coll.lots.create_index([('precision', pymongo.ASCENDING), ('region._id', pymongo.ASCENDING), ('client._id', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)]) #make this a uniquely sparse solution
 
+    coll.lots.create_index([('patron._id', pymongo.ASCENDING), ('_id', pymongo.ASCENDING)])
+
+    order = 0
     for layer in osgeo.ogr.Open(args.shapefile):
         for feature in layer:
+            order = order + 1
             lots = {}
 
             hashes = set([])
@@ -125,7 +134,8 @@ if __name__ == "__main__":
                     'name': region_name,
                     'slug': region_slug,
                     'state': args.state,
-                    'precisions': PRECISION,
+                    'precision': PRECISION,
+                    'order': order,
                     'srid': {
                         'storage': 4326,
                         'calculation': 3338,
@@ -143,19 +153,19 @@ if __name__ == "__main__":
                     },
                     'area': {
                         'normal': {
-                            'allocated': 0,
                             'available': 0,
+                            'total': 0,
                         },
                         'buffer': {
-                            'allocated': 0,
                             'available': 0,
+                            'total': 0,
                         }
                     },
-                    'holding': {
+                    'value': {
                         'unit': 'usd',
                         'normal': {
-                            'allocated': 0,
                             'available': 0,
+                            'total': 0,
                         },
                     },
                     'flags': {
@@ -166,6 +176,7 @@ if __name__ == "__main__":
                         'imported': NOW,
                         'estimated': None,
                     },
+                    'patrons': []
                 }
 
             buffered_feature_geom = feature_geom.Clone()
@@ -205,6 +216,15 @@ if __name__ == "__main__":
                     'hash': hash,
                     'state': args.state, #Convert to FIPS code #FIXME
                     'parent': hash[0:len(hash)-1] or None,
+                    'client': {
+                        '_id': None,
+                    },
+                    'patron': {
+                        '_id': None,
+                    },
+                    'purchase': {
+                        '_id': None,
+                    },
                     'precision': len(hash),
                     'children': [],
                     'geom': {
@@ -215,19 +235,19 @@ if __name__ == "__main__":
                     'area': {
                         'unit': 'meters',
                         'normal': {
-                            'allocated': 0,
                             'available': 0,
+                            'total': 0,
                         },
                         'buffer': {
-                            'allocated': 0,
                             'available': 0,
+                            'total': 0,
                         }
                     },
-                    'holding': {
+                    'value': {
                         'unit': 'usd',
                         'normal': {
-                            'allocated': 0,
                             'available': 0,
+                            'total': 0,
                         },
                     },
                     'flags': {
@@ -243,17 +263,16 @@ if __name__ == "__main__":
                         '_id': region_oid,
                         'name': region_name,
                         'slug': region_slug,
-                    },
-                    
+                    },                    
                 }
 
                 lots[hash] = default_lot_dict
-
 
             widgets = ['Calculating Area: ', progressbar.Percentage(), ' ', progressbar.Bar()]
             progress = progressbar.ProgressBar(widgets=widgets).start()
 
             for hash in progress(sorted_hashes):
+
 
                 hash_bbox = geohash.bbox(hash)
 
@@ -276,6 +295,10 @@ if __name__ == "__main__":
                 hash_geom = osgeo.ogr.ForceToPolygon(hash_geom)                
                 if not str(hash_geom).startswith('POLYGON'):
                     print str(hash_geom)
+
+                lot_value = random.randint(8000,16000)/1000.0
+
+                lots[hash]['order'] = hash_geom.Centroid().Distance(feature_geom.Centroid())
 
                 lots[hash]['geom']['centroid'] = json.loads(hash_geom.Centroid().ExportToJson())
                 lots[hash]['geom']['bounds'] = json.loads(hash_bbox_geom.ConvexHull().ExportToJson())
@@ -312,13 +335,22 @@ if __name__ == "__main__":
                 area_square_meters = hash_geom_xform.Area()
 
                 ###### Now it's time to make the database parts work out well.
+
+                specific_area = 'buffer' if is_buffer_lot else 'normal'
+
+                region['area'][specific_area]['available'] += area_square_meters
+                region['area'][specific_area]['total'] += area_square_meters
                 
-                for parent in [hash[0:p] for p in range(1, len(hash))]: #dynamic precision
-                    specific_area = 'buffer' if is_buffer_lot else 'normal'
-                    lots[parent]['area'][specific_area]['allocated'] += area_square_meters
+                region['value']['normal']['available'] += lot_value
+                region['value']['normal']['total'] += lot_value
+
+                for parent in [hash[0:p] for p in range(1, len(hash)+1)]: #dynamic precision
                     lots[parent]['area'][specific_area]['available'] += area_square_meters
-                    region['area'][specific_area]['allocated'] += area_square_meters
-                    region['area'][specific_area]['available'] += area_square_meters
+                    lots[parent]['area'][specific_area]['total'] += area_square_meters
+
+                    lots[parent]['value']['normal']['available'] += lot_value
+                    lots[parent]['value']['normal']['total'] += lot_value
+
 
             coll.regions.insert(region)
             coll.users.update({

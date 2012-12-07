@@ -69,14 +69,15 @@
 </dl>
 <ul class="tabs-content contained">
   <li class="active" id="loginTab">
-          <form>
+          <form method="POST">
+          {% raw xsrf_form_html() %}
           <div class="row collapse">
-            <div class="four columns"><label class="inline">Your Email</label></div>
-            <div class="eight columns"><input type="text" id="email" placeholder="jane@smithco.com" />
+            <div class="four columns"><label class="inline">{% raw form.username.label %}</label></div>
+            <div class="eight columns">{% raw form.username(class_="text") %}</div>
           </div>
           <div class="row collapse">
-            <div class="four columns"><label class="inline">Your Password</label></div>
-            <div class="eight columns"><input type="password" id="password" placeholder="password" />
+            <div class="four columns"><label class="inline">{% raw form.password.label %}</label></div>
+            <div class="eight columns">{% raw form.password(class_="text") %}</div>
           </div>
           <button type="submit" class="radius button">Submit</button>
           </form>

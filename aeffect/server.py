@@ -6,11 +6,24 @@
 import os
 import aeffect
 
+import pprint
+
+import urllib
+
 #Tornadooo
 import tornado.ioloop
 import tornado.web
 import tornado.httpserver
+import tornado.httpclient
 import tornado.gen
+
+tornado.httpclient.AsyncHTTPClient.configure("tornado.curl_httpclient.CurlAsyncHTTPClient")
+
+import bcrypt
+import wtforms
+
+import stripe
+stripe.api_key = "sk_test_7KLJuxL8t9huAIDkKROOxT8C"
 
 #JSON
 import json
@@ -63,14 +76,46 @@ REGION_INC = 0
 
 class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycket.notification.NotificationMixin):
 
+    def authorize_user(self, username, password):
+        mongodb = self.settings['mongodb']
+        print username
+        result = mongodb.users.find_one(
+            spec_or_id = {
+                '$query': {
+                    'email': username,
+                    },
+                '$returnKey': True
+                },
+            fields = {'email': 1, 'password': 1, '_id': 1}
+            )
+
+        print result    
+        if not result:
+            return None
+
+        if bcrypt.hashpw(password, result['password']) == result['password']:
+            return result['_id']
+
+        return None
+    
     def update_pages(self, oid, extratouch=None):
         mongodb = self.settings['mongodb']
         inbound_dir = os.path.join(self.settings['inbound_path'], str(oid), 'pages')
 
+        print '!!!!!!!!!!!!', inbound_dir, extratouch
+        print '!!!!!!!!!!!!'
+        print '!!!!!!!!!!!!'
+        print '!!!!!!!!!!!!'
+        print '!!!!!!!!!!!!'
+        print '!!!!!!!!!!!!'
+
         try:
             os.makedirs(inbound_dir)
+        except:
+            pass
+        try:
             if extratouch:
-                open(os.path.join(inbound_dir, extratouch), 'w').write('')
+                open(os.path.join(inbound_dir, extratouch), 'a')
         except:
             pass
 
@@ -136,7 +181,6 @@ class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycke
         return full_name.strip()
 
     def write_error(self, status_code, *args, **kwargs):
-        import pprint
         pprint.pprint(args)
         pprint.pprint(kwargs)
 
@@ -192,28 +236,209 @@ class RegionHandler(BaseHandler):
 
         region = REGION_SLUG_MAP[region_slug]
 
-        self.update_pages(region['client']['_id'], region['slug'])
+        print region
 
+        self.update_pages(region['client']['_id'], region['slug'])
 
         content_html = yield motor.Op(motordb.pages.find_one, {
                             'user._id': region['client']['_id'],
                             'type': region['slug'],
                         })
+        if not content_html:
+            content_html = {'data': 'Coming Soon...'}
 
         self.render('region.html', content_html = content_html['data'], all_regions={'Testing': []}, state = "Alaska", envelope=region['geom']['envelope'] , region_slug = region_slug, region = region, pretty_region = bson.json_util.dumps(region, indent=2))
 
+################################################################################
+
+class PurchaseHandler(BaseHandler):
+
+    @tornado.web.authenticated
+    @tornado.web.asynchronous
+    @tornado.gen.engine
+    def get(self):
+        global REGION_CACHE
+        global REGION_ID_MAP
+        global REGION_SLUG_MAP
+        global REGION_INC
+        mongodb = self.settings['mongodb']
+
+        self.update_region_cache()
+
+        if self.session.get('purchase'):
+            purchase = self.session.get('purchase')
+            self.session.delete('purchase')
+            user = self.get_current_user()
+            amount = int(float(purchase['amount'].strip('$').strip().replace(',','')))
+            print amount
+
+            print "Iterating through regions"
+
+            purchase_id = bson.ObjectId()
+            purchase_potential = 0
+            potential_lots = []
+            fulfulled = False
+
+            for region in REGION_CACHE:
+                print region['name']
+                #don't bother checking if the region has any available positions.. lets just start working on lots.
+                while True:
+                    potential_lot = mongodb.lots.find_and_modify(
+                                    query = {
+                                        'region._id': region['_id'],
+                                        'precision': region['precision'],
+                                        'value.normal.available': {"$ne": 0, "$gte": 0, "$lte": amount - purchase_potential},
+                                        'purchase._id': None,
+                                    },
+                                    update = {
+                                        '$set': {
+                                            'purchase._id': purchase_id,
+                                        }
+                                    },
+                                    sort = [('region._id', 1), ('order', 1)],
+                                    upsert=False,
+                                    new=False
+                                )
+                    if not potential_lot:
+                        break
+                    potential_lots.append((potential_lot['_id'], potential_lot['hash'], potential_lot['value']['normal']['available'], region['_id']))
+                    purchase_potential += potential_lot['value']['normal']['available']
+                    print potential_lot['_id'], potential_lot['value']['normal']['available'], purchase_potential, amount - purchase_potential, amount
+
+            pprint.pprint(potential_lots)
+            
+            charge = stripe.Charge.create(
+                amount=int(purchase_potential * 100),
+                currency="usd",
+                card=purchase['token'], # obtained with Stripe.js
+                description="Charge for %s (%s)" % (user['name']['preferred'], str(user['_id']))
+            )
+
+            if charge['paid']:
+                for lot_oid, lot_hash, lot_value, lot_region_oid in potential_lots:
+                    for parent_hash in [lot_hash[0:p] for p in range(1, len(lot_hash)+1)]: #dynamic precision
+                        mongodb.lots.update(
+                            {
+                                'hash': parent_hash,
+                                'region._id': lot_region_oid,                    
+                            },
+                            {
+                                '$inc': {
+                                    'value.normal.available': -lot_value,
+                                }                               
+                            }
+                        )
+
+                        #lol.. just do this once per region later FIXME
+                        mongodb.regions.update(
+                            {
+                                'region._id': lot_region_oid,                    
+                            },
+                            {
+                                '$inc': {
+                                    'value.normal.available': -lot_value,
+                                }                               
+                            }
+                        )
+        
+            else:            
+                for lot_oid, lot_hash, lot_value, lot_region_oid in potential_lots:
+                    mongodb.lots.update(
+                        {
+                           '_id', lot_oid,
+                        },
+                        {
+                            '$set': {
+                                'purchase._id': None,
+                            }                               
+                        }
+                    )
+
+            self.render('purchased.html', charge = charge)
+            mailgun = tornado.httpclient.AsyncHTTPClient()
+            response = yield tornado.gen.Task(mailgun.fetch, "https://api.mailgun.net/v2/akcarbonexchange.mailgun.org/messages",
+                auth_username='api',
+                auth_password='key-5lux8y538yix4ch5m4yzcurrk8pxs6m0',
+                method='POST',
+                body=urllib.urlencode({
+                    "from": "AK Carbon Exchange <postmaster@akcarbonexchange.mailgun.org>",
+                    "to": "shane@bogomip.com",
+                    "subject": "Purchase Receipt",
+                    "text": "Testing ...."
+                }),
+            )
+            print response.body
+
+
+        else:
+            print [j['name'] for j in sorted(REGION_CACHE, key=lambda x: x['order'])]
+            self.render('purchase.html')
+        
+
+    @tornado.web.authenticated
+    def post(self):
+        self.session.set(
+                'purchase', {
+                    'amount': self.get_argument('amount', strip=True),
+                    'token': self.get_argument('stripeToken', strip=True),
+                    }
+                )
+
+        self.redirect(self.request.uri)
 ################################################################################
 ## ╻  ┏━┓┏━╸╻┏┓╻┏━╸┏━┓┏━┓┏┳┓
 ## ┃  ┃ ┃┃╺┓┃┃┗┫┣╸ ┃ ┃┣┳┛┃┃┃
 ## ┗━╸┗━┛┗━┛╹╹ ╹╹  ┗━┛╹┗╸╹ ╹
 
-class LoginHandler(BaseHandler):
+class LoginForm(wtforms.Form):
+    username = wtforms.TextField('Username', [wtforms.validators.Length(min=4, max=25)])
+    password = wtforms.PasswordField('Password', [wtforms.validators.Length(min=4, max=25), ])
 
+class LoginHandler(BaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self):
-        self.session.set('foo', ['bar', 'baz'])
-        self.render('login.html')
+        
+        motordb = self.settings['motordb']
+        auth = self.session.get('auth', {})
+        self.session.delete('auth')
+
+        next_uri = self.get_argument('next', None)
+
+        form = LoginForm(**auth)
+
+        if form.validate():
+            self.session.delete('user')
+
+            authorized_oid = self.authorize_user(form.username.data, form.password.data)
+            print authorized_oid
+
+            if authorized_oid:
+                user = yield motor.Op(motordb.users.find_one, {
+                            '_id': authorized_oid,
+                        })
+
+                self.session.set('user', user)
+                print user, authorized_oid
+
+                self.redirect(next_uri or self.reverse_url('index'))
+                return
+
+        else:
+            print form
+        self.render('login.html', form=form)
+
+    def post(self):
+
+        self.session.set(
+                'auth', {
+                    'username': self.get_argument('username', strip=True),
+                    'password': self.get_argument('password'),
+                    }
+                )
+
+        self.redirect(self.request.uri)
+
 
 ################################################################################
 ## ╻  ┏━┓┏━╸┏━┓╻ ╻╺┳╸╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
@@ -221,12 +446,9 @@ class LoginHandler(BaseHandler):
 ## ┗━╸┗━┛┗━┛┗━┛┗━┛ ╹ ╹ ╹╹ ╹╹ ╹╺┻┛┗━╸┗━╸╹┗╸
 
 class LogoutHandler(BaseHandler):
-
-    @tornado.web.asynchronous
-    @tornado.gen.engine
     def get(self):
-        self.session.set('foo', ['bar', 'baz'])
-        self.render('login.html')
+        self.session.delete('user')
+        self.redirect(self.reverse_url('login'))
 
 ################################################################################
 ##  ┏┓┏━┓┏━┓┏┓╻╺┳╸┏━╸┏━┓╺┳╸╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
@@ -457,8 +679,9 @@ def serve(listenuri, mongodburi):
             #tornado.web.URLSpec(r"/$", tornado.web.RedirectHandler, kwargs=dict(url='/dashboard')), #Temporary pending main advert/news page
             tornado.web.URLSpec(r"/jsontest$", JSONTestHandler),
             tornado.web.URLSpec(r"/region/(.*)", RegionHandler),
-            tornado.web.URLSpec(r"/login$", LoginHandler),
-            tornado.web.URLSpec(r"/logout$", LogoutHandler),
+            tornado.web.URLSpec(r"/purchase$", PurchaseHandler),
+            tornado.web.URLSpec(r"/login$", LoginHandler, name='login'),
+            tornado.web.URLSpec(r"/logout$", LogoutHandler, name='logout'),
             tornado.web.URLSpec(r"/$", MainHandler, name='index'),
             tornado.web.URLSpec(r"/(.*)", PageErrorHandler, kwargs=dict(error=404)),
         ],
