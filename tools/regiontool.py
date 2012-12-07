@@ -1,6 +1,7 @@
 #!/usr/bin/python
 
 import re
+import redis
 
 import datetime
 
@@ -17,6 +18,8 @@ import osgeo.osr
 import osgeo.ogr
 
 import geohash
+
+r = redis.Redis()
 
 PRECISION = 7 #.. Yeah.. that happen.
 SEGMENT_PRECISION = 0.0001 #not good enough for 8
@@ -318,5 +321,12 @@ if __name__ == "__main__":
                     region['area'][specific_area]['available'] += area_square_meters
 
             coll.regions.insert(region)
+            coll.users.update({
+                '_id': client_oid,
+                },
+                {'$addToSet': {'regions': region_oid}},
+            )
             for lot in lots.itervalues():
                 coll.lots.insert(lot)
+
+            r.incr('aceregion')

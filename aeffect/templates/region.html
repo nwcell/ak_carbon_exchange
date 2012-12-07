@@ -11,7 +11,7 @@
   <!-- Set the viewport width to device width for mobile -->
   <meta name="viewport" content="width=device-width" />
 
-  <title>Alaska Carbon Exchange :: Region :: {{ region_name }}</title>
+  <title>Alaska Carbon Exchange :: Region :: {{ region['name'] }}</title>
 
   <!-- Included CSS Files (Uncompressed) -->
   <!--
@@ -50,7 +50,7 @@
             {% if all_regions %}
                 {% for section, regions in all_regions.iteritems() %}
                 <li><label>{{ section }}</label></li>
-                    {% for region in regions %}
+                    {% for _region in regions %}
                         <li><a href="#" class="">Dropdown Level 1</a></li>
                     {% end %}
                 <li class="divider"></li>
@@ -90,118 +90,37 @@
       <li><a href="#">Home</a></li>
       <li><a href="#">Regions</a></li>
       <li><a href="#" id="state">{{ state }}</a></li>
-      {% if region_name %}
-          <li class="current" id="region-li"><a href="#" id="region">{{ region_name }}</a></li>
+      {% if region['name'] %}
+          <li class="current" id="region-li"><a href="#" id="region">{{ region['name'] }}</a></li>
       {% else %}
           <li class="unavailable" id="region-li"><a href="#" id="region">Please select a region by clicking on it on the map or from the upper menu</a></li>
       {% end %}
   </ul>
 
   <!-- Main Grid Section -->
-
   <div class="row">
-
-    <div class="three columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a three columns grid panel with an arbitrary height.</p>
+    <div class="twelve columns">
+      <div class="row panel">
+        <h2>{{ region['name'] }}</h2>
       </div>
     </div>
-    <div class="six columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a six columns grid panel with an arbitrary height. Bacon ipsum dolor sit amet salami ham hock biltong ball tip drumstick sirloin pancetta meatball short loin.</p>
-      </div>
-    </div>
-    <div class="three columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a three columns grid panel with an arbitrary height.</p>
-      </div>
-    </div>
-
   </div>
 
-
-
   <div class="row">
 
-    <div class="six columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a six columns grid panel with an arbitrary height. Bacon ipsum dolor sit amet salami ham hock biltong ball tip drumstick sirloin pancetta meatball short loin.</p>
-      </div>
-    </div>
-    <div class="two columns">
-      <div class="panel">
-        <p>
-          <img src="http://placehold.it/200x200" />
-        </p>
-      </div>
-    </div>
-    <div class="four columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a four columns grid panel with an arbitrary height. Bacon ipsum dolor sit amet salami.</p>
-      </div>
-    </div>
+    <div class="eleven columns centered" role="content">
+   <article>
 
-  </div>
+        <div class="row">
+            {% raw content_html %}
+        </div>
 
+      </article>
 
-  <div class="row">
-
-    <div class="four columns">
-      <div class="panel">
-        <p>
-          <img src="http://placehold.it/400x300" />
-        </p>
-      </div>
     </div>
-    <div class="four columns">
-      <div class="panel">
-        <p>
-          <img src="http://placehold.it/400x300" />
-        </p>
-      </div>
-    </div>
-    <div class="four columns">
-      <div class="panel">
-        <p>
-          <img src="http://placehold.it/400x300" />
-        </p>
-      </div>
-    </div>
-
-  </div>
-
-
-  <div class="row">
-
-    <div class="six columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a six columns grid panel with an arbitrary height. Bacon ipsum dolor sit amet salami ham hock biltong ball tip drumstick sirloin pancetta meatball short loin.</p>
-      </div>
-    </div>
-    <div class="three columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a three columns grid panel with an arbitrary height.</p>
-      </div>
-    </div>
-    <div class="three columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a three columns grid panel with an arbitrary height.</p>
-      </div>
-    </div>
-
   </div>
 
   <!-- End Grid Section -->
-
-
 
   <!-- Footer -->
 
@@ -282,8 +201,8 @@
 
   <script type="text/javascript">
     var Rects = [];
-    var region_slug = "{{ region_slug }}";
-    var region_name = "{{ region_name }}";
+    var region_slug = "{{ region['slug'] }}";
+    var region_name = "{{ region['name'] }}";
 
     function myFunction(data) {
         console.log('starting');
@@ -369,12 +288,12 @@
                         google.maps.event.addListener(lotPolygon, 'mouseover', function() {
                             this.setOptions({'fillOpacity': .5});
                             this.setOptions({'strokeWeight': 4});
-                            jQuery("#region").html(this.that.region.name + " <b>(Click the region for more information)</b>");
+                            jQuery("#region").html(this.that.region['name'] + " <b>(Click the region for more information)</b>");
                         });
                         google.maps.event.addListener(lotPolygon, 'mouseout', function() {
                             this.setOptions({'fillOpacity': 0.0});
                             this.setOptions({'strokeWeight': 2});
-                            jQuery("#region").text("{{ region_name }}");
+                            jQuery("#region").text("{{ region['name'] }}");
                         });
     
                         lotPolygon.setMap(themap);
@@ -392,7 +311,7 @@
 
                         var color = "#C0C0C0";
 
-                        if(obj.slug == "{{ region_slug }}"){
+                        if(obj.slug == "{{ region['slug'] }}"){
                             color = "#C00000";
                         };
 
@@ -420,7 +339,7 @@
                         });
                         google.maps.event.addListener(lotPolygon, 'mouseout', function() {
                             this.setOptions({'strokeWeight': 10});
-                            jQuery("#region").text("{{ region_name }}");
+                            jQuery("#region").text("{{ region['name'] }}");
                         });
     
                         lotPolygon.setMap(themap);

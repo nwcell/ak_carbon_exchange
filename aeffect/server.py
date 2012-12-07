@@ -15,9 +15,14 @@ import tornado.gen
 #JSON
 import json
 
+
+#El Mongo
+import pymongo
+import bson
+import bson.json_util
+
 #Tornado based MongoDB connector
 import motor
-import bson.json_util
 
 #Sessions and Cache
 import redis
@@ -26,6 +31,8 @@ import pycket
 import pycket.session
 import pycket.notification
 
+#Markdown
+import markdown
 
 #The fun stuff
 import geohash
@@ -39,14 +46,68 @@ WGS_84.ImportFromEPSG(4326)
 PRECISION = 7 #.. Yeah.. that happen.
 SEGMENT_PRECISION = 0.0001 #not good enough for 8
 BUFFER_PRECISION = 0.0001 # not good enough for 8
+################################################################################
+## CACHES
 
-####################################
+# These are above and beyond redis..  Objects that need to be super fast
+
+REGION_CACHE = []
+REGION_ID_MAP = {}
+REGION_SLUG_MAP = {}
+REGION_INC = 0
+
 ################################################################################
 ## ┏┓ ┏━┓┏━┓┏━╸╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
 ## ┣┻┓┣━┫┗━┓┣╸ ┣━┫┣━┫┃┗┫ ┃┃┃  ┣╸ ┣┳┛
 ## ┗━┛╹ ╹┗━┛┗━╸╹ ╹╹ ╹╹ ╹╺┻┛┗━╸┗━╸╹┗╸
 
 class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycket.notification.NotificationMixin):
+
+    def update_pages(self, inbounder):
+        mongodb = self.settings['mongodb']
+        inbound_dir = os.path.join(self.settings['inbound_path'], inbounder, 'pages')
+        if not os.path.exists(os.path.join(inbound_dir, 'DELETE_TO_UPDATE')):
+
+            open(os.path.join(inbound_dir, 'DELETE_TO_UPDATE'), 'w').write('')
+
+            try:
+                files = os.listdir(inbound_dir)
+            except:
+                files = []
+            for f in files:
+                try:
+                    content = open(os.path.join(inbound_dir, f)).read()
+                except:
+                    content = ''
+
+                if content:
+                    mongodb.pages.update(
+                        {'user._id': self.settings['siteuser'], 'type': f},
+                        {'$set': {'data': markdown.markdown(content)}}
+                    )
+            
+    def update_region_cache(self):
+        global REGION_CACHE
+        global REGION_ID_MAP
+        global REGION_SLUG_MAP
+        global REGION_INC
+        import time
+        mongodb = self.settings['mongodb']
+        redisdb = self.settings['redisdb']
+        regionkey = self.settings['regionkey']
+        #redisdb.setnx(regionkey, 0)
+        setted = redisdb.get(regionkey) > REGION_INC
+        if setted:
+            REGION_INC = setted
+            #make thread safe FIXME
+            REGION_CACHE = []
+            REGION_ID_MAP = {}
+            REGION_SLUG_MAP = {}
+            for region in mongodb.regions.find():
+                REGION_CACHE.append(region)
+                REGION_ID_MAP[region['_id']] = region
+                REGION_SLUG_MAP[region['slug']] = region
+
     def get_current_user(self):
         return self.session.get('user')
 
@@ -81,8 +142,16 @@ class MainHandler(BaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self):
+        motordb = self.settings['motordb']
         self.session.set('foo', ['bar', 'baz'])
-        self.render('index.html', all_regions={'Testing': []}, state = "Alaska" , region_slug = "", region_name = "")
+        self.update_pages(self.settings['siteuserinbounder'])
+
+        content_html = yield motor.Op(motordb.pages.find_one, {
+                            'user._id': self.settings['siteuser'],
+                            'type': 'site',
+                        })
+        
+        self.render('index.html', content_html = content_html['data'], all_regions={'Testing': []}, state = "Alaska" , region_slug = "", region_name = "")
 
 ################################################################################
 ## ┏━┓┏━╸┏━╸╻┏━┓┏┓╻╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
@@ -94,15 +163,21 @@ class RegionHandler(BaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self, region_slug):
-        db = self.settings['mongodb']
+        global REGION_CACHE
+        global REGION_ID_MAP
+        global REGION_SLUG_MAP
+        global REGION_INC
+        motordb = self.settings['motordb']
 
         self.session.set('foo', ['bar', 'baz'])
 
-        query = {'slug': region_slug}
+        self.update_region_cache()
 
-        region = yield motor.Op(db.regions.find_one, query)
+        region = REGION_SLUG_MAP[region_slug]
 
-        self.render('region.html', all_regions={'Testing': []}, state = "Alaska", envelope=region['geom']['envelope'] , region_slug = region_slug, region_name = region['name'])
+        content_html = ''
+
+        self.render('region.html', content_html = content_html, all_regions={'Testing': []}, state = "Alaska", envelope=region['geom']['envelope'] , region_slug = region_slug, region = region, pretty_region = bson.json_util.dumps(region, indent=2))
 
 ################################################################################
 ## ╻  ┏━┓┏━╸╻┏┓╻┏━╸┏━┓┏━┓┏┳┓
@@ -140,7 +215,11 @@ class JSONTestHandler(BaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self):
-        db = self.settings['mongodb']
+        global REGION_CACHE
+        global REGION_ID_MAP
+        global REGION_SLUG_MAP
+        global REGION_INC
+        motordb = self.settings['motordb']
         print 'processing request'
         ### Process Bounds and Center arguments
 
@@ -271,8 +350,11 @@ class JSONTestHandler(BaseHandler):
         region_set = set([])
 
         query = {'parent': {'$in': list(possible_hashes)}}
-        cursor = db.lots.find(query)
+        cursor = motordb.lots.find(query)
         print query
+
+        self.update_region_cache()
+
         while (yield cursor.fetch_next):
             lot = cursor.next_object()
             lot['lot'] = True
@@ -280,13 +362,9 @@ class JSONTestHandler(BaseHandler):
             region_set.add(lot['region']['_id'])
             lots.append(lot)
 
-        query = {'_id': {'$in': list(region_set)}}
-        cursor = db.regions.find(query)
-
-        while (yield cursor.fetch_next):
-            region = cursor.next_object()
+        for region_oid in region_set:
+            region = REGION_ID_MAP[region_oid]
             region['region'] = True
-            ###print region
             regions.append(region)
 
         #print len(lots), region_set
@@ -324,10 +402,14 @@ def serve(listenuri, mongodburi):
     static_path_dict = dict(path=static_path)
     
     template_path = os.path.join(os.path.dirname(__file__), "templates")
-        
-    mongodb = motor.MotorConnection(mongodburi).open_sync().ace
-    cachedb = tornadoredis.Client()
 
+    inbound_path = os.path.join(os.path.dirname(__file__), "../inbound")
+        
+    motordb = motor.MotorConnection(mongodburi).open_sync().ace
+    mongodb = pymongo.Connection(mongodburi).ace
+    tornadoredisdb = tornadoredis.Client()
+    redisdb = redis.Redis()
+    
     application = tornado.web.Application(
         handlers = [
             tornado.web.URLSpec(r"/static/(.*)", tornado.web.StaticFileHandler, static_path_dict),
@@ -358,12 +440,18 @@ def serve(listenuri, mongodburi):
         **{          
             'template_path': template_path,
             'static_path': static_path,
+            'inbound_path': inbound_path,
             'cookie_secret': 'cookiemonster',
             'xsrf_cookies': True,
             'debug': True, #FIXME
             'login_url': '/login',
             'mongodb': mongodb,
-            'cachedb': cachedb,
+            'motordb': motordb,
+            'tornadoredisdb': tornadoredisdb,
+            'redisdb': redisdb,
+            'siteuser': bson.ObjectId('50bb047f17a78f9c422b45da'),
+            'siteuserinbounder': 'webmaster',
+            'regionkey': 'aceregion', #Removed when a region is modified so that each and every instance of Tornado replenishes its region cache.
             'pycket': {
                 'engine': 'redis',
                 'storage': {

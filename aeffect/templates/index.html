@@ -32,7 +32,7 @@
       <!-- Title Area -->
       <li class="name">
         <h1>
-          <a href="#">
+          <a href="/">
             <span id="ihateyou">Alaska Carbon Exchange</span>
           </a>
         </h1>
@@ -50,7 +50,7 @@
             {% if all_regions %}
                 {% for section, regions in all_regions.iteritems() %}
                 <li><label>{{ section }}</label></li>
-                    {% for region in regions %}
+                    {% for _region in regions %}
                         <li><a href="#" class="">Dropdown Level 1</a></li>
                     {% end %}
                 <li class="divider"></li>
@@ -63,55 +63,15 @@
         <li class="divider"></li>
         <li><a href="#">Visible Regions</a></li>
         <li class="divider"></li>
-        <li class="search">
-          <a href="#">Search</a>
-        </li>
-        <li class="divider"></li>
       </ul>
 
       <!-- Right Nav Section -->
       <ul class="right">
         <li class="divider"></li>
-        <li class="has-dropdown">
-          <a href="#">Main Item 4</a>
-          <ul class="dropdown">
-            <li><label>Section Name</label></li>
-            <li class="has-dropdown">
-              <a href="#" class="">Has Dropdown, Level 1</a>
-              <ul class="dropdown">
-                <li><a href="#">Dropdown Options</a></li>
-                <li><a href="#">Dropdown Options</a></li>
-                <li class="has-dropdown">
-                  <a href="#">Has Dropdown, Level 2</a>
-                  <ul class="dropdown test">
-                    <li><a href="#">Subdropdown Option</a></li>
-                    <li><a href="#">Subdropdown Option</a></li>
-                    <li><a href="#">Subdropdown Option</a></li>
-                  </ul>
-                </li>
-                <li><a href="#">Subdropdown Option</a></li>
-                <li><a href="#">Subdropdown Option</a></li>
-                <li><a href="#">Subdropdown Option</a></li>
-              </ul>
-            </li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li class="divider"></li>
-            <li><label>Section Name</label></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li><a href="#">Dropdown Option</a></li>
-            <li class="divider"></li>
-            <li><input type="search"></li>
-          </ul>
-        </li>
-        <li class="divider"></li>
           <li class="search">
               <form action="asdf">
-                <input type="search">
+                <input type="search" placeholder="Search...">
               </form>
-          </li>
-            <li class="has-button">
           </li>
         <li class="divider"></li>
         <li>
@@ -130,113 +90,56 @@
       <li><a href="#">Home</a></li>
       <li><a href="#">Regions</a></li>
       <li><a href="#" id="state">{{ state }}</a></li>
-      {% if region_name %}
-          <li class="current" id="region-li"><a href="#" id="region">{{ region_name }}</a></li>
-      {% else %}
-          <li class="unavailable" id="region-li"><a href="#" id="region">Please select a region by clicking on it on the map or from the upper menu</a></li>
-      {% end %}
+      <li class="unavailable" id="region-li"><a href="#" id="region">Please select a region by clicking on it on the map or from the upper menu</a></li>
   </ul>
+
+  <div class="row">
+    <div class="twelve columns">
+    
+      <div class="panel">            
+        <div class="row">
+          <div class="nine mobile-four columns">
+            <h4>Become a patron of the world!</h4>
+            <p>Morbi suscipit nulla eu metus lobortis malesuada a vel felis. Proin ut ultrices lectus. Vestibulum cursus est sed dolor pulvinar vestibulum. Suspendisse potenti. Donec in leo non sem semper iaculis. Integer non mauris purus, interdum tempor dolor. Praesent ac sollicitudin velit. Curabitur in malesuada dolor. Nulla facilisi. Morbi mauris mauris, cursus a tristique eget, commodo a turpis. Curabitur justo magna, pellentesque sit amet tempor sed, eleifend non felis. Ut eu mauris a neque faucibus luctus lobortis id justo. Suspendisse potenti. Praesent at sapien tortor.</p>
+            <p><a href="#" class="secondary button">Purchase a land holding today! &rarr;</a></p>
+          </div>
+          <div class="three columns hide-for-small">
+      <div id="feature">
+        <div data-caption="#captionOne">
+            <img src="http://placehold.it/1000x1000&text=[img 1]" />
+        </div>
+        <div data-caption="#captionTwo">
+            <img src="http://placehold.it/1000x1000&text=[img 2]" />
+        </div>
+        <div data-caption="#captionThree">
+            <img src="http://placehold.it/1000x1000&text=[img 3]" />
+        </div>
+      </div>
+          </div>
+        </div>
+      </div>
+
+<span class="orbit-caption" id="captionOne">Here is a caption...</span>
+<span class="orbit-caption" id="captionTwo">Here is a caption2...</span>
+<span class="orbit-caption" id="captionThree">Here is a caption3...</span>      
+
+    </div>
+  </div>
 
   <!-- Main Grid Section -->
 
   <div class="row">
 
-    <div class="three columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a three columns grid panel with an arbitrary height.</p>
-      </div>
+    <div class="eleven columns centered" role="content">
+   <article>
+
+        <div class="row">
+            {% raw content_html %}
+        </div>
+
+      </article>
+
     </div>
-    <div class="six columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a six columns grid panel with an arbitrary height. Bacon ipsum dolor sit amet salami ham hock biltong ball tip drumstick sirloin pancetta meatball short loin.</p>
-      </div>
-    </div>
-    <div class="three columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a three columns grid panel with an arbitrary height.</p>
-      </div>
-    </div>
-
-  </div>
-
-
-
-  <div class="row">
-
-    <div class="six columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a six columns grid panel with an arbitrary height. Bacon ipsum dolor sit amet salami ham hock biltong ball tip drumstick sirloin pancetta meatball short loin.</p>
-      </div>
-    </div>
-    <div class="two columns">
-      <div class="panel">
-        <p>
-          <img src="http://placehold.it/200x200" />
-        </p>
-      </div>
-    </div>
-    <div class="four columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a four columns grid panel with an arbitrary height. Bacon ipsum dolor sit amet salami.</p>
-      </div>
-    </div>
-
-  </div>
-
-
-  <div class="row">
-
-    <div class="four columns">
-      <div class="panel">
-        <p>
-          <img src="http://placehold.it/400x300" />
-        </p>
-      </div>
-    </div>
-    <div class="four columns">
-      <div class="panel">
-        <p>
-          <img src="http://placehold.it/400x300" />
-        </p>
-      </div>
-    </div>
-    <div class="four columns">
-      <div class="panel">
-        <p>
-          <img src="http://placehold.it/400x300" />
-        </p>
-      </div>
-    </div>
-
-  </div>
-
-
-  <div class="row">
-
-    <div class="six columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a six columns grid panel with an arbitrary height. Bacon ipsum dolor sit amet salami ham hock biltong ball tip drumstick sirloin pancetta meatball short loin.</p>
-      </div>
-    </div>
-    <div class="three columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a three columns grid panel with an arbitrary height.</p>
-      </div>
-    </div>
-    <div class="three columns">
-      <div class="panel">
-        <h5>Panel Title</h5>
-        <p>This is a three columns grid panel with an arbitrary height.</p>
-      </div>
-    </div>
-
   </div>
 
   <!-- End Grid Section -->
@@ -322,8 +225,6 @@
 
   <script type="text/javascript">
     var Rects = [];
-    var region_slug = "{{ region_slug }}";
-    var region_name = "{{ region_name }}";
 
     function myFunction(data) {
         console.log('starting');
@@ -478,7 +379,10 @@
             }
         );
     });    
-    
+
+     jQuery(window).load(function() {
+         jQuery('#feature').orbit({ fluid: '4x4', directionalNav: false, pauseOnHover: true});
+     });    
   </script>
 
 </body>

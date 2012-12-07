@@ -10,9 +10,12 @@ pip install progressbar
 pip install stripe
 pip install tornado-stripe
 pip install redis tornadoredis pycket
+pip install py-bcrypt
 pip install git+https://github.com/ajdavis/mongo-python-driver.git@motor
 
-apt-get install gdal-bin python-gdal python-xapian
+apt-get install gdal-bin python-gdal
+
+apt-get install xapian-tools python-xapian
 
 Install mongodb from 10gen repos
 ```
