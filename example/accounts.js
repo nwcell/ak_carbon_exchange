@@ -9,7 +9,7 @@ db.users.ensureIndex({ 'email' : 1, 'password' : 1, '_id' : 1});
 
 site_user = ObjectId('50bb047f17a78f9c422b45da');
 shane_user = ObjectId('50bb047f17a78f9c422b45db');
-happy_user = ObjectId('50bb047f17a78f9c422b45dc');
+travis_user = ObjectId('50bb047f17a78f9c422b45dc');
 
 db.users.save({
     '_id': site_user,
@@ -24,7 +24,7 @@ db.users.save({
         'last': 'Master',         
         'preferred': 'Alaska Carbon Echange',
     },
-    'password': '$2a$10$1EztV8icBkB0SflToXIT0uSPbu/YFAC/1wlEBw.6nZFxNDU8jc3N6',
+    'password': '$2a$12$ipPbwv2IVefxAjasXlcU9OsydLsrcGe5hlwwwe2SLtxEA/ED4LOya', //ace
     'timezone': 'America/Anchorage',
     'content': {
         'blogs': { // redundant to db.blogs.. just summary information
@@ -78,30 +78,30 @@ db.users.save({
 });
 
 db.users.save({
-    '_id': happy_user,
+    '_id': travis_user,
     'timestamps' : {
         'joined': ISODate("2012-02-09T00:30:13.140Z"),
         'login': null,
         'cache': ISODate("2012-02-09T00:30:13.140Z"),
     },
-    'email': 'happy@example.com',
+    'email': 'travis@example.com',
     'name': {
-        'first': 'James',
-        'last': 'Hapner',         
-        'preferred': 'James (Happy) Hapner Jr.',
+        'first': 'Travis',
+        'last': 'Krause',         
+        'preferred': 'Travis (Cheers) Krause',
     },
-    'password': '$2a$12$ksdmmbBX2kVhY/aONAd7Ye.1ZfPOe0u2IRnuHz1PwAyWjeS9oWhme',
+    'password': '$2a$12$fhilfurQd4avDaO4QfsLwe5cqmFIMxMs3qt8hi83bVIKnnbzvYCRC', // cheers
     'timezone': 'America/Anchorage',
     'content': {
         'blogs': {
             'default': {
                 'active': false,                
-                'name': 'James (Happy) Hapner\'s Blog',
+                'name': 'James (travis) Hapner\'s Blog',
                 'posts': [],
             },
         },
     },
-    'inbounder': 'mrhappy',
+    'inbounder': 'mrtravis',
     'regions': [],
 });
 

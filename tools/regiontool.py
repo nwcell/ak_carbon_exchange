@@ -141,7 +141,7 @@ if __name__ == "__main__":
                         'calculation': 3338,
                     },
                     'geom': {
-                        'outline': json.loads(osgeo.ogr.ForceToPolygon(feature_geom).ExportToJson()),
+                        'outline': bson.Binary(osgeo.ogr.ForceToPolygon(feature_geom).ExportToWkb()),
                         'envelope': feature_geom.GetEnvelope()
                     },
                     'client': {
@@ -300,11 +300,11 @@ if __name__ == "__main__":
 
                 lots[hash]['order'] = hash_geom.Centroid().Distance(feature_geom.Centroid())
 
-                lots[hash]['geom']['centroid'] = json.loads(hash_geom.Centroid().ExportToJson())
-                lots[hash]['geom']['bounds'] = json.loads(hash_bbox_geom.ConvexHull().ExportToJson())
+                lots[hash]['geom']['centroid'] = bson.Binary(hash_geom.Centroid().ExportToWkb())
+                lots[hash]['geom']['bounds'] = bson.Binary(hash_bbox_geom.ConvexHull().ExportToWkb())
                 lots[hash]['geom']['envelope'] = hash_geom.GetEnvelope()
-                lots[hash]['geom']['outline'] = json.loads(hash_geom.ConvexHull().ExportToJson())
-                lots[hash]['geom']['outline'] = json.loads(hash_geom.ExportToJson())
+                lots[hash]['geom']['outline'] = bson.Binary(hash_geom.ConvexHull().ExportToWkb())
+                lots[hash]['geom']['outline'] = bson.Binary(hash_geom.ExportToWkb())
 
                 ### Add Children to Parents
                 hash_parent = lots[hash]['parent']

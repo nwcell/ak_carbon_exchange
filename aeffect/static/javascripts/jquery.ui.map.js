@@ -364,7 +364,7 @@
 		
 	});
 	
-	jQuery.each(('click rightclick idle dblclick mouseover mouseout drag dragend').split(' '), function(i, name) {
+	jQuery.each(('click rightclick idle dblclick mouseover mouseout drag dragend bounds_changed zoom_changed maptypeid_changed').split(' '), function(i, name) {
 		jQuery.fn[name] = function(a, b) {
 			return this.addEventListener(name, a, b);
 		}

@@ -4,6 +4,8 @@
 """Aeffect Server"""
 
 import os
+import copy
+
 import aeffect
 
 import pprint
@@ -64,11 +66,6 @@ BUFFER_PRECISION = 0.0001 # not good enough for 8
 
 # These are above and beyond redis..  Objects that need to be super fast
 
-REGION_CACHE = []
-REGION_ID_MAP = {}
-REGION_SLUG_MAP = {}
-REGION_INC = 0
-
 ################################################################################
 ## ┏┓ ┏━┓┏━┓┏━╸╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
 ## ┣┻┓┣━┫┗━┓┣╸ ┣━┫┣━┫┃┗┫ ┃┃┃  ┣╸ ┣┳┛
@@ -78,7 +75,6 @@ class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycke
 
     def authorize_user(self, username, password):
         mongodb = self.settings['mongodb']
-        print username
         result = mongodb.users.find_one(
             spec_or_id = {
                 '$query': {
@@ -89,7 +85,6 @@ class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycke
             fields = {'email': 1, 'password': 1, '_id': 1}
             )
 
-        print result    
         if not result:
             return None
 
@@ -101,13 +96,6 @@ class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycke
     def update_pages(self, oid, extratouch=None):
         mongodb = self.settings['mongodb']
         inbound_dir = os.path.join(self.settings['inbound_path'], str(oid), 'pages')
-
-        print '!!!!!!!!!!!!', inbound_dir, extratouch
-        print '!!!!!!!!!!!!'
-        print '!!!!!!!!!!!!'
-        print '!!!!!!!!!!!!'
-        print '!!!!!!!!!!!!'
-        print '!!!!!!!!!!!!'
 
         try:
             os.makedirs(inbound_dir)
@@ -121,7 +109,7 @@ class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycke
 
         if not os.path.exists(os.path.join(inbound_dir, 'DELETE_TO_UPDATE')):
 
-            open(os.path.join(inbound_dir, 'DELETE_TO_UPDATE'), 'w').write('')
+            ## open(os.path.join(inbound_dir, 'DELETE_TO_UPDATE'), 'w').write('') FIXME.. REMOVED FOR NOW
 
             try:
                 files = os.listdir(inbound_dir)
@@ -147,28 +135,38 @@ class BaseHandler(tornado.web.RequestHandler, pycket.session.SessionMixin, pycke
                     )
             
     def update_region_cache(self):
-        global REGION_CACHE
-        global REGION_ID_MAP
-        global REGION_SLUG_MAP
-        global REGION_INC
         import time
         mongodb = self.settings['mongodb']
         redisdb = self.settings['redisdb']
-        regionkey = self.settings['regionkey']
+        regionkey = self.settings['cache']['region']['key']
         #redisdb.setnx(regionkey, 0)
         cacheinc = redisdb.get(regionkey)
-        setted = cacheinc > REGION_INC
+        setted = cacheinc != self.settings['cache']['region']['stamp']
+
+        sections = {
+            'a-j': ('a','j'),
+            'k': ('k','k'),
+            'm-z': ('m','z'),
+        }
 
         if setted:
-            REGION_INC = cacheinc
+            self.settings['cache']['region']['stamp'] = cacheinc
             #make thread safe FIXME
-            REGION_CACHE = []
-            REGION_ID_MAP = {}
-            REGION_SLUG_MAP = {}
+            self.settings['cache']['region']['array'] = []
+            self.settings['cache']['region']['sectioned'] = {}
+            self.settings['cache']['region']['map']['_id'] = {}
+            self.settings['cache']['region']['map']['slug'] = {}
             for region in mongodb.regions.find():
-                REGION_CACHE.append(region)
-                REGION_ID_MAP[region['_id']] = region
-                REGION_SLUG_MAP[region['slug']] = region
+                region['_section'] = 'misc'
+                for s, r in sections.iteritems():
+                    if region['name'][0].lower() >= r[0]:
+                        if region['name'][0].lower() <= r[1]:
+                            region['_section'] = s    
+
+                self.settings['cache']['region']['array'].append(region)
+                self.settings['cache']['region']['sectioned'].setdefault(region['_section'], []).append(region)
+                self.settings['cache']['region']['map']['_id'][region['_id']] = region
+                self.settings['cache']['region']['map']['slug'][region['slug']] = region
 
     def get_current_user(self):
         return self.session.get('user')
@@ -205,14 +203,20 @@ class MainHandler(BaseHandler):
     def get(self):
         motordb = self.settings['motordb']
         self.session.set('foo', ['bar', 'baz'])
+        self.update_region_cache()
         self.update_pages(self.settings['siteuser'], 'site')
 
         content_html = yield motor.Op(motordb.pages.find_one, {
                             'user._id': self.settings['siteuser'],
                             'type': 'site',
                         })
-        
-        self.render('index.html', content_html = content_html['data'], all_regions={'Testing': []}, state = "Alaska" , region_slug = "", region_name = "")
+
+        self.render('index.html',
+            content_html = content_html['data'],
+            all_regions=self.settings['cache']['region']['sectioned'],
+            state = "Alaska",
+            form=LoginForm(),
+        )
 
 ################################################################################
 ## ┏━┓┏━╸┏━╸╻┏━┓┏┓╻╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
@@ -224,19 +228,13 @@ class RegionHandler(BaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self, region_slug):
-        global REGION_CACHE
-        global REGION_ID_MAP
-        global REGION_SLUG_MAP
-        global REGION_INC
         motordb = self.settings['motordb']
 
         self.session.set('foo', ['bar', 'baz'])
 
         self.update_region_cache()
 
-        region = REGION_SLUG_MAP[region_slug]
-
-        print region
+        region = self.settings['cache']['region']['map']['slug'][region_slug]
 
         self.update_pages(region['client']['_id'], region['slug'])
 
@@ -246,8 +244,16 @@ class RegionHandler(BaseHandler):
                         })
         if not content_html:
             content_html = {'data': 'Coming Soon...'}
-
-        self.render('region.html', content_html = content_html['data'], all_regions={'Testing': []}, state = "Alaska", envelope=region['geom']['envelope'] , region_slug = region_slug, region = region, pretty_region = bson.json_util.dumps(region, indent=2))
+        pprint.pprint(self.settings['cache'])
+        self.render('region.html',
+            content_html = content_html['data'],
+            all_regions=self.settings['cache']['region']['sectioned'],
+            state = "Alaska",
+            envelope=region['geom']['envelope'],
+            region_slug = region_slug,
+            region = region,
+            form=LoginForm(),
+        )
 
 ################################################################################
 
@@ -257,10 +263,6 @@ class PurchaseHandler(BaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self):
-        global REGION_CACHE
-        global REGION_ID_MAP
-        global REGION_SLUG_MAP
-        global REGION_INC
         mongodb = self.settings['mongodb']
 
         self.update_region_cache()
@@ -279,7 +281,7 @@ class PurchaseHandler(BaseHandler):
             potential_lots = []
             fulfulled = False
 
-            for region in REGION_CACHE:
+            for region in self.settings['cache']['region']['array']:
                 print region['name']
                 #don't bother checking if the region has any available positions.. lets just start working on lots.
                 while True:
@@ -371,7 +373,7 @@ class PurchaseHandler(BaseHandler):
 
 
         else:
-            print [j['name'] for j in sorted(REGION_CACHE, key=lambda x: x['order'])]
+            print [j['name'] for j in sorted(self.settings['cache']['region']['array'], key=lambda x: x['order'])]
             self.render('purchase.html')
         
 
@@ -411,7 +413,6 @@ class LoginHandler(BaseHandler):
             self.session.delete('user')
 
             authorized_oid = self.authorize_user(form.username.data, form.password.data)
-            print authorized_oid
 
             if authorized_oid:
                 user = yield motor.Op(motordb.users.find_one, {
@@ -419,7 +420,6 @@ class LoginHandler(BaseHandler):
                         })
 
                 self.session.set('user', user)
-                print user, authorized_oid
 
                 self.redirect(next_uri or self.reverse_url('index'))
                 return
@@ -460,10 +460,6 @@ class JSONTestHandler(BaseHandler):
     @tornado.web.asynchronous
     @tornado.gen.engine
     def get(self):
-        global REGION_CACHE
-        global REGION_ID_MAP
-        global REGION_SLUG_MAP
-        global REGION_INC
         motordb = self.settings['motordb']
         print 'processing request'
         ### Process Bounds and Center arguments
@@ -487,6 +483,7 @@ class JSONTestHandler(BaseHandler):
 
         #Do not use spacial reference system so that calculations are faster.. not needed 
         view_bounds_ring = osgeo.ogr.Geometry(osgeo.ogr.wkbLinearRing)
+        view_bounds_ring.TransformTo(WGS_84)
         view_bounds_ring.AddPoint(view_bounds_west, view_bounds_north)
         view_bounds_ring.AddPoint(view_bounds_east, view_bounds_north)
         view_bounds_ring.AddPoint(view_bounds_east, view_bounds_south)
@@ -494,7 +491,7 @@ class JSONTestHandler(BaseHandler):
         view_bounds_ring.AddPoint(view_bounds_west, view_bounds_north)
 
         view_bounds_geom = osgeo.ogr.Geometry(osgeo.ogr.wkbPolygon)
-
+        view_bounds_geom.TransformTo(WGS_84)
         view_bounds_geom.AddGeometry(view_bounds_ring)
         view_bounds_area = view_bounds_geom.Area()
         
@@ -533,6 +530,7 @@ class JSONTestHandler(BaseHandler):
                 possible_hash_bbox = geohash.bbox(possible_hash)
                 #Do not use spacial reference system
                 possible_hash_ring = osgeo.ogr.Geometry(osgeo.ogr.wkbLinearRing)
+                possible_hash_ring.TransformTo(WGS_84)
                 possible_hash_ring.AddPoint(possible_hash_bbox['w'], possible_hash_bbox['n'])
                 possible_hash_ring.AddPoint(possible_hash_bbox['e'], possible_hash_bbox['n'])
                 possible_hash_ring.AddPoint(possible_hash_bbox['e'], possible_hash_bbox['s'])
@@ -540,10 +538,12 @@ class JSONTestHandler(BaseHandler):
                 possible_hash_ring.AddPoint(possible_hash_bbox['w'], possible_hash_bbox['n'])
             
                 possible_hash_geom = osgeo.ogr.Geometry(osgeo.ogr.wkbPolygon)
+                possible_hash_geom.TransformTo(WGS_84)
             
                 possible_hash_geom.AddGeometry(possible_hash_ring)
 
                 possible_hash_geom_intersection = view_bounds_geom.Intersection(possible_hash_geom)
+                possible_hash_geom_intersection.TransformTo(WGS_84)
                 possible_hash_area = possible_hash_geom_intersection.Area()
 
                 if possible_hash_area or view_center_hash.startswith(possible_hash):
@@ -561,6 +561,7 @@ class JSONTestHandler(BaseHandler):
             possible_hash_bbox = geohash.bbox(possible_hash)
             #Do not use spacial reference system
             possible_hash_ring = osgeo.ogr.Geometry(osgeo.ogr.wkbLinearRing)
+            possible_hash_ring.TransformTo(WGS_84)
             possible_hash_ring.AddPoint(possible_hash_bbox['w'], possible_hash_bbox['n'])
             possible_hash_ring.AddPoint(possible_hash_bbox['e'], possible_hash_bbox['n'])
             possible_hash_ring.AddPoint(possible_hash_bbox['e'], possible_hash_bbox['s'])
@@ -568,10 +569,12 @@ class JSONTestHandler(BaseHandler):
             possible_hash_ring.AddPoint(possible_hash_bbox['w'], possible_hash_bbox['n'])
         
             possible_hash_geom = osgeo.ogr.Geometry(osgeo.ogr.wkbPolygon)
+            possible_hash_geom.TransformTo(WGS_84)
         
             possible_hash_geom.AddGeometry(possible_hash_ring)
 
             possible_hash_geom_intersection = view_bounds_geom.Intersection(possible_hash_geom)
+            possible_hash_geom_intersection.TransformTo(WGS_84)
             possible_hash_area = possible_hash_geom_intersection.Area()
 
             if possible_hash_area or view_center_hash.startswith(possible_hash):
@@ -606,17 +609,27 @@ class JSONTestHandler(BaseHandler):
             lot = cursor.next_object()
             lot['lot'] = True
             lot['bbox'] = geohash.bbox(lot['hash'])
-            region_set.add(lot['region']['_id'])
-            lots.append(lot)
+            outline = osgeo.ogr.Geometry(wkb=str(lot['geom']['outline']))
+            outline.TransformTo(WGS_84)
+            lot['geom']['outline'] = json.loads(osgeo.ogr.ForceToPolygon(outline).ExportToJson())
+            #geom = osgeo.ogr.ForceToPolygon(osgeo.ogr.Geometry(json.dumps(lot['geom']['outline'])).ConvexHull())
+            geom = outline.ConvexHull()
+
+            if view_bounds_geom.Contains(geom) or view_bounds_geom.Intersects(geom) or view_zoom == 5:
+                region_set.add(lot['region']['_id'])
+                if view_zoom != 5:
+                    lots.append(lot)
 
         for region_oid in region_set:
-            region = REGION_ID_MAP[region_oid]
+            region = copy.deepcopy(self.settings['cache']['region']['map']['_id'][region_oid])
             region['region'] = True
+            outline = osgeo.ogr.Geometry(wkb=str(region['geom']['outline']))
+            outline.TransformTo(WGS_84)
+            region['geom']['outline'] = json.loads(osgeo.ogr.ForceToPolygon(outline).ExportToJson())
             regions.append(region)
+        
 
-        #print len(lots), region_set
-
-        self.write(bson.json_util.dumps(regions + lots))
+        self.write(bson.json_util.dumps(sorted(regions, key=lambda x: x['order']) + lots))
         self.finish()
         return
 
@@ -698,7 +711,18 @@ def serve(listenuri, mongodburi):
             'tornadoredisdb': tornadoredisdb,
             'redisdb': redisdb,
             'siteuser': bson.ObjectId('50bb047f17a78f9c422b45da'),
-            'regionkey': 'aceregion', #Removed when a region is modified so that each and every instance of Tornado replenishes its region cache.
+            'cache': {
+                'region': {
+                    'key': 'aceregion',
+                    'stamp': None,
+                    'array': [],
+                    'sectioned': {},
+                    'map': {
+                        '_id': {},
+                        'slug': {},
+                    },
+                },
+            },
             'pycket': {
                 'engine': 'redis',
                 'storage': {
