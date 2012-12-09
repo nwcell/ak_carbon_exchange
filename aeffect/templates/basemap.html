@@ -126,7 +126,7 @@
 
 <div id="loginModal" class="reveal-modal [expand, xlarge, large, medium, small]">
     <h2>Member Login</h2>
-          <form method="POST">
+          <form action="/login" method="POST">
           {% raw xsrf_form_html() %}
           <div class="row collapse">
             <div class="four columns"><label class="inline">{% raw form.username.label %}</label></div>
@@ -143,7 +143,7 @@
 
 <div id="registerModal" class="reveal-modal [expand, xlarge, large, medium, small]">
     <h2>Member Registration</h2>
-          <form>
+          <form action="/register" method="POST">
           {% raw xsrf_form_html() %}
           <div class="row collapse">
             <div class="four columns"><label class="inline">Your Name</label></div>

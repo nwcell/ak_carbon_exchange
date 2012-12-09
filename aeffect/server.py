@@ -448,7 +448,7 @@ class LoginHandler(BaseHandler):
 class LogoutHandler(BaseHandler):
     def get(self):
         self.session.delete('user')
-        self.redirect(self.reverse_url('login'))
+        self.redirect(self.reverse_url('index'))
 
 ################################################################################
 ##  ┏┓┏━┓┏━┓┏┓╻╺┳╸┏━╸┏━┓╺┳╸╻ ╻┏━┓┏┓╻╺┳┓╻  ┏━╸┏━┓
