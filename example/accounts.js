@@ -77,6 +77,7 @@ db.users.save({
     'regions': [],
 });
 
+travis_user = ObjectId('50bb047f17a78f9c422b45dc');
 db.users.save({
     '_id': travis_user,
     'timestamps' : {
@@ -84,7 +85,7 @@ db.users.save({
         'login': null,
         'cache': ISODate("2012-02-09T00:30:13.140Z"),
     },
-    'email': 'travis@example.com',
+    'email': 'travis@cheers.im',
     'name': {
         'first': 'Travis',
         'last': 'Krause',         
