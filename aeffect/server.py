@@ -364,9 +364,9 @@ class PurchaseHandler(BaseHandler):
                 method='POST',
                 body=urllib.urlencode({
                     "from": "AK Carbon Exchange <postmaster@akcarbonexchange.mailgun.org>",
-                    "to": "shane@bogomip.com",
+                    "to": str(self.get_current_user()['email']),
                     "subject": "Purchase Receipt",
-                    "text": "Testing ...."
+                    "text": "Congrats! Your purchase has been processed!"
                 }),
             )
             print response.body
@@ -432,7 +432,7 @@ class LoginHandler(BaseHandler):
 
         self.session.set(
                 'auth', {
-                    'username': self.get_argument('username', strip=True),
+                    'username': self.get_argument('username', strip=True).lower(),
                     'password': self.get_argument('password'),
                     }
                 )
